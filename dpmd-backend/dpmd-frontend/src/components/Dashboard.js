@@ -38,15 +38,14 @@ const Dashboard = ({ onFilterClick }) => {
     fetchWeeklySchedule();
   }, []);
 
+  // Logika carousel
   useEffect(() => {
+    // Bersihkan semua interval yang ada sebelum membuat yang baru
     Object.values(carouselIntervals.current).forEach(clearInterval);
     
     weeklySchedule.forEach((day, dayIndex) => {
       if (day.kegiatan && day.kegiatan.length > 1) {
-        if (carouselIntervals.current[dayIndex]) {
-          clearInterval(carouselIntervals.current[dayIndex]);
-        }
-        
+        // Buat interval baru untuk setiap hari dengan lebih dari 1 kegiatan
         const intervalId = setInterval(() => {
           setActiveActivityIndex(prev => ({
             ...prev,
@@ -58,6 +57,7 @@ const Dashboard = ({ onFilterClick }) => {
       }
     });
 
+    // Fungsi cleanup untuk membersihkan interval saat komponen di-unmount
     return () => {
       Object.values(carouselIntervals.current).forEach(clearInterval);
     };
@@ -134,7 +134,7 @@ const Dashboard = ({ onFilterClick }) => {
                     {keg.details && keg.details.length > 0 ? (
                       keg.details.map((detail, detailIndex) => (
                         <div key={detailIndex} className="activity-card-detail-item">
-                          <span>{detail.bidang.nama_bidang}:</span>
+                          <span>{detail.nama_bidang}:</span>
                           {renderPersonilList(detail.personil)}
                         </div>
                       ))

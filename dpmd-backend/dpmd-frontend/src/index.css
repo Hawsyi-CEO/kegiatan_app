@@ -5,7 +5,7 @@ body {
   font-family: 'Inter', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #ffffff;
+  background-color: #F3F4F6; /* Mengembalikan warna latar belakang ke abu-abu muda */
 }
 
 code {
@@ -609,7 +609,7 @@ code {
 .search-input-wrapper,
 .filter-select-wrapper {
   position: relative;
-  width: 100%;
+  width: 70%;
 }
 @media (min-width: 768px) {
   .search-input-wrapper,
@@ -676,7 +676,7 @@ code {
 }
 
 .data-table td {
-
+  padding: 1rem 1.5rem;
   font-size: 0.875rem;
   color: #374151;
   border-bottom: 1px solid #e5e7eb;
@@ -691,20 +691,23 @@ code {
   transition: background-color 0.2s ease-in-out;
 }
 
-.table-personil-wrapper {
+.personil-wrapper {
   max-width: 250px;
   overflow: auto;
 }
 
-.table-personil-wrapper p {
+.personil-wrapper p {
   padding-top: 0.25rem;
   padding-bottom: 0.25rem;
   display: flex;
   align-items: center;
-  text-align: le;
 }
-.table-personil-wrapper p i {
+.personil-wrapper p i {
   margin-right: 0.5rem;
+}
+
+.actions-cell {
+  white-space: nowrap;
 }
 
 .btn-edit {
@@ -745,7 +748,7 @@ code {
   margin-right: 0.25rem;
 }
 
-.pagination-container {
+.pagination-controls {
   margin-top: 1.5rem;
   display: flex;
   justify-content: center;

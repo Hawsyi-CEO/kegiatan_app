@@ -26,36 +26,45 @@ class DashboardController extends Controller
     public function weeklySchedule()
     {
         $startOfWeek = Carbon::now()->startOfWeek(Carbon::MONDAY);
-        $endOfWeek = Carbon::now()->endOfWeek(Carbon::FRIDAY);
+        $endOfWeek = Carbon::now()->endOfWeek(Carbon::SUNDAY); // Mengubah endOfWeek ke Minggu
         
         $hari_indonesia = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
         $weekly_schedule = [];
         
-        for ($i = 0; $i < 5; $i++) {
-            $date = $startOfWeek->copy()->addDays($i)->format('Y-m-d');
-            $day_name = $hari_indonesia[$startOfWeek->copy()->addDays($i)->dayOfWeek];
-            $weekly_schedule[] = [
-                'tanggal' => $date,
+        // Loop 7 hari dari Senin hingga Minggu
+        for ($i = 0; $i < 7; $i++) {
+            $date = $startOfWeek->copy()->addDays($i);
+            $day_name = $hari_indonesia[$date->dayOfWeek]; // Dapatkan nama hari
+            $weekly_schedule[$date->format('Y-m-d')] = [
+                'tanggal' => $date->format('Y-m-d'),
                 'hari' => $day_name,
                 'kegiatan' => []
             ];
         }
 
+        // Ambil semua kegiatan yang beririsan dengan rentang minggu saat ini
         $kegiatan = Kegiatan::with(['details.bidang'])
             ->where(function ($query) use ($startOfWeek, $endOfWeek) {
-                $query->whereBetween('tanggal_mulai', [$startOfWeek, $endOfWeek]);
+                $query->where('tanggal_mulai', '<=', $endOfWeek)
+                      ->where('tanggal_selesai', '>=', $startOfWeek);
             })
             ->orderBy('tanggal_mulai', 'asc')
             ->get();
-            
+        
+        // Distribusikan kegiatan ke setiap hari dalam rentang tanggalnya
         foreach ($kegiatan as $keg) {
-            $tanggal_kegiatan = Carbon::parse($keg->tanggal_mulai);
-            $index = $tanggal_kegiatan->dayOfWeek - 1;
+            $currentDate = Carbon::parse($keg->tanggal_mulai);
+            $endDate = Carbon::parse($keg->tanggal_selesai);
 
-            if ($index >= 0 && $index < 5) {
-                $weekly_schedule[$index]['kegiatan'][] = $keg;
+            while ($currentDate->lte($endDate)) {
+                $formattedDate = $currentDate->format('Y-m-d');
+                if (isset($weekly_schedule[$formattedDate])) {
+                    $weekly_schedule[$formattedDate]['kegiatan'][] = $keg;
+                }
+                $currentDate->addDay();
             }
         }
-        return response()->json($weekly_schedule);
+        
+        return response()->json(array_values($weekly_schedule));
     }
 }
