@@ -1,0 +1,232 @@
+/* src/bumdes-app/pages/bumdes.css */
+
+/* Global Style Overrides */
+.bg-gray-100 {
+    background-color: #f0f4f8; /* Soft blue-gray background */
+}
+.min-h-screen {
+    min-height: 100vh;
+}
+.custom-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 3rem 2rem;
+}
+
+/* Typography */
+h1, h2, h3, h4, p, label {
+    font-family: 'Poppins', sans-serif;
+    color: #1a202c;
+}
+h1, h2, h3 {
+    font-weight: 700;
+}
+p, label {
+    font-weight: 400;
+}
+
+/* Header and Navigation */
+.header-card {
+    background: #ffffff;
+    border-radius: 20px;
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.08);
+    padding: 2rem;
+    margin-bottom: 2.5rem;
+    transition: all 0.4s ease-in-out;
+}
+.header-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+}
+
+.header-title {
+    font-size: 2.5rem;
+    background: linear-gradient(45deg, #4299e1, #667eea);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    transition: all 0.4s ease-in-out;
+}
+.header-card:hover .header-title {
+    transform: translateX(10px);
+}
+.header-subtitle {
+    font-size: 1rem;
+    color: #4a5568;
+    margin-top: 0.5rem;
+}
+
+.nav-buttons-container {
+    display: flex;
+    justify-content: center;
+    gap: 1.5rem;
+    margin-bottom: 3rem;
+    flex-wrap: wrap;
+}
+.nav-button {
+    flex: 1;
+    min-width: 150px;
+    padding: 0.9rem 1.8rem;
+    border-radius: 50px;
+    font-weight: 600;
+    color: #4a5568;
+    background-color: #e2e8f0;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+    border: none;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.nav-button:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+}
+.nav-button.active {
+    background-color: #4299e1;
+    color: white;
+    box-shadow: 0 10px 20px rgba(66, 153, 225, 0.4);
+}
+
+/* Form Interaktif dan Animasi */
+.container {
+    display: flex;
+    gap: 2.5rem;
+}
+.sidebar {
+    width: 280px;
+    background-color: #ffffff;
+    padding: 2rem;
+    border-radius: 15px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+}
+.sidebar h3 {
+    padding: 0.9rem 1.25rem;
+    cursor: pointer;
+    border-radius: 10px;
+    margin-bottom: 0.75rem;
+    transition: all 0.3s ease-in-out;
+}
+.sidebar h3:hover {
+    background-color: #f0f4f8;
+    transform: translateX(5px);
+}
+.sidebar h3.active {
+    background-color: #4299e1;
+    color: white;
+    box-shadow: 0 5px 15px rgba(66, 153, 225, 0.2);
+}
+.form-section {
+    flex: 1;
+    animation: fadeInSlideIn 0.8s forwards;
+    opacity: 0;
+    transform: translateY(20px);
+}
+@keyframes fadeInSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+.card {
+    background: #ffffff;
+    padding: 2.5rem;
+    border-radius: 20px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+    margin-bottom: 2rem;
+}
+input, select {
+    display: block;
+    width: 100%;
+    padding: 0.9rem 1.2rem;
+    margin-top: 0.5rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    font-size: 1rem;
+    transition: all 0.3s ease-in-out;
+}
+input:focus, select:focus {
+    border-color: #4299e1;
+    box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.2);
+    outline: none;
+}
+button[type="submit"] {
+    background: linear-gradient(to right, #48bb78, #38a169);
+    color: white;
+    border: none;
+    cursor: pointer;
+    padding: 1rem 2rem;
+    border-radius: 50px;
+    font-weight: 700;
+    box-shadow: 0 10px 20px rgba(56, 161, 105, 0.3);
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+button[type="submit"]:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 15px 30px rgba(56, 161, 105, 0.4);
+}
+
+/* Dashboard Statistik dan Grafik */
+.chart-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 2.5rem;
+    margin-top: 2rem;
+}
+.chart-box {
+    background: #ffffff;
+    padding: 2.5rem;
+    border-radius: 20px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+    transition: transform 0.3s ease-in-out;
+}
+.chart-box:hover {
+    transform: translateY(-5px);
+}
+.grid-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-top: 2rem;
+}
+.grid-container .card {
+    cursor: pointer;
+    transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+}
+.grid-container .card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+}
+.details-container {
+    background: #ffffff;
+    border-radius: 20px;
+    padding: 3rem;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+    animation: zoomIn 0.4s ease-out;
+}
+@keyframes zoomIn {
+    from {
+        transform: scale(0.9) translate(-50%, -50%);
+        opacity: 0;
+    }
+    to {
+        transform: scale(1) translate(-50%, -50%);
+        opacity: 1;
+    }
+}
+.overlay {
+    backdrop-filter: blur(5px);
+    background-color: rgba(0,0,0,0.4);
+}
+.file-uploaded {
+    color: #38a169;
+    font-weight: 600;
+}
+.file-not-uploaded {
+    color: #e53e3e;
+    font-weight: 600;
+}

@@ -411,6 +411,7 @@ code {
   box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
   border: none;
   cursor: pointer;
+  width: 20vh;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -531,7 +532,7 @@ code {
 }
 
 .section-divider {
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px transparent;
   margin-top: 2rem;
   margin-bottom: 1.5rem;
 }

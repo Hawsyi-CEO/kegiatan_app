@@ -5,6 +5,7 @@ use App\Http\Controllers\KegiatanController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\BidangController;
 use App\Http\Controllers\PersonilController;
+use App\Http\Controllers\Api\BumdesController; // Tambahkan ini
 
 // Rute spesifik untuk 'export-excel' harus didefinisikan terlebih dahulu.
 Route::get('kegiatan/export-excel', [KegiatanController::class, 'exportExcel']);
@@ -17,3 +18,9 @@ Route::get('dashboard/weekly-schedule', [DashboardController::class, 'weeklySche
 Route::get('bidang', [BidangController::class, 'index']);
 Route::get('personil', [PersonilController::class, 'index']);
 Route::get('personil-by-bidang/{id_bidang}', [PersonilController::class, 'getPersonilByBidang']);
+
+// =========================================================
+//           Tambahkan Rute BUMDes di bawah ini
+// =========================================================
+Route::apiResource('bumdes', BumdesController::class);
+Route::get('bumdes/search', [BumdesController::class, 'search']);
