@@ -20,7 +20,9 @@ Route::get('personil', [PersonilController::class, 'index']);
 Route::get('personil-by-bidang/{id_bidang}', [PersonilController::class, 'getPersonilByBidang']);
 
 // =========================================================
-//           Tambahkan Rute BUMDes di bawah ini
+//         PENTING: Letakkan Rute Spesifik di Atas
 // =========================================================
-Route::apiResource('bumdes', BumdesController::class);
 Route::get('bumdes/search', [BumdesController::class, 'search']);
+
+// Rute 'apiResource' yang bersifat umum harus berada di bawahnya
+Route::apiResource('bumdes', BumdesController::class);

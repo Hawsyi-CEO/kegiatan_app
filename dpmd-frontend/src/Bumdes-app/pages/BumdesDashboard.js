@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Bar, Doughnut, Pie } from 'react-chartjs-2';
 import 'chart.js/auto';
+import { FaSearch, FaFilter, FaRedoAlt } from 'react-icons/fa';
 import './bumdes.css';
 
 function BumdesDashboard() {
@@ -23,7 +24,7 @@ function BumdesDashboard() {
                 setKecamatanList(uniqueKecamatan.sort());
             } catch (error) {
                 console.error('Error fetching data:', error);
-                setError('Gagal memuat data dari server.');
+                setError('Gagal memuat data dari server. 😔');
             } finally {
                 setLoading(false);
             }
@@ -33,27 +34,25 @@ function BumdesDashboard() {
 
     useEffect(() => {
         let temp = data.filter(item => {
-            const matchesSearch = item.namabumdesa?.toLowerCase().includes(filter.search.toLowerCase()) || item.desa?.toLowerCase().includes(filter.search.toLowerCase());
+            const matchesSearch = (item.namabumdesa?.toLowerCase().includes(filter.search.toLowerCase()) || item.desa?.toLowerCase().includes(filter.search.toLowerCase()));
             const matchesKecamatan = !filter.kecamatan || item.kecamatan === filter.kecamatan;
             return matchesSearch && matchesKecamatan;
         });
         setFilteredData(temp);
     }, [filter, data]);
 
-    // Function to safely get chart data, handling null values
     const getChartData = (key) => {
         const counts = filteredData.reduce((acc, item) => {
-            // Use 'Tidak Diketahui' as a fallback for null or empty values
             const value = item[key] || 'Tidak Diketahui';
             acc[value] = (acc[value] || 0) + 1;
             return acc;
         }, {});
         
-        // Generate a random color for each data point
         const generateColors = (count) => {
             const colors = [];
+            const baseHue = 200; // Blue-green
             for (let i = 0; i < count; i++) {
-                const hue = (360 / count) * i;
+                const hue = (baseHue + (360 / count) * i) % 360;
                 colors.push(`hsl(${hue}, 70%, 60%)`);
             }
             return colors;
@@ -85,66 +84,94 @@ function BumdesDashboard() {
     };
 
     if (loading) {
-        return <div className="text-center text-xl font-semibold text-gray-600">Memuat data...</div>;
+        return <div className="loading-message">Memuat data... 🔄</div>;
     }
     if (error) {
-        return <div className="text-center text-xl font-semibold text-red-600">{error}</div>;
+        return <div className="error-message">{error}</div>;
     }
 
     return (
-        <div className="container">
-            <h2 className="header-title" style={{ textAlign: 'center' }}>Dashboard Statistik BUMDes</h2>
-            <div className="chart-container">
-                <div className="chart-box"><Bar data={getChartData('status')} /></div>
-                <div className="chart-box"><Doughnut data={getChartData('JenisUsaha')} /></div>
-                <div className="chart-box"><Pie data={getChartData('badanhukum')} /></div>
+        <div className="dashboard-container">
+            <h2 className="dashboard-title">Dashboard Statistik BUMDes</h2>
+            
+            <div className="chart-grid">
+                <div className="chart-card-item">
+                    <h3 className="chart-title-item">Status BUMDes</h3>
+                    <Bar data={getChartData('status')} />
+                </div>
+                <div className="chart-card-item">
+                    <h3 className="chart-title-item">Jenis Usaha</h3>
+                    <Doughnut data={getChartData('JenisUsaha')} />
+                </div>
+                <div className="chart-card-item">
+                    <h3 className="chart-title-item">Status Badan Hukum</h3>
+                    <Pie data={getChartData('badanhukum')} />
+                </div>
             </div>
             
-            <div className="card mt-8">
-                <div className="flex flex-wrap gap-4 mb-4">
-                    <input
-                        type="text"
-                        placeholder="Cari Nama BUMDes..."
-                        value={filter.search}
-                        onChange={e => setFilter({ ...filter, search: e.target.value })}
-                        className="flex-1 min-w-[200px] p-2 border rounded"
-                    />
-                    <select
-                        value={filter.kecamatan}
-                        onChange={e => setFilter({ ...filter, kecamatan: e.target.value })}
-                        className="flex-1 min-w-[200px] p-2 border rounded"
-                    >
-                        <option value="">Semua Kecamatan</option>
-                        {kecamatanList.map(kec => <option key={kec} value={kec}>{kec}</option>)}
-                    </select>
-                    <button onClick={() => setFilteredData(data)} className="p-2 bg-blue-500 text-white rounded">
-                        Lihat Semua
+            <div className="data-table-card">
+                <div className="filter-container">
+                    <div className="input-with-icon">
+                        <FaSearch className="icon" />
+                        <input
+                            type="text"
+                            placeholder="Cari Nama BUMDes atau Desa..."
+                            value={filter.search}
+                            onChange={e => setFilter({ ...filter, search: e.target.value })}
+                            className="filter-input"
+                        />
+                    </div>
+                    <div className="input-with-icon">
+                        <FaFilter className="icon" />
+                        <select
+                            value={filter.kecamatan}
+                            onChange={e => setFilter({ ...filter, kecamatan: e.target.value })}
+                            className="filter-select"
+                        >
+                            <option value="">Semua Kecamatan</option>
+                            {kecamatanList.map(kec => <option key={kec} value={kec}>{kec}</option>)}
+                        </select>
+                    </div>
+                    <button onClick={() => setFilter({ search: '', kecamatan: '' })} className="reset-button">
+                        <FaRedoAlt className="icon" /> Reset
                     </button>
                 </div>
                 
-                <div className="grid-container">
-                    {filteredData.map(bumdes => (
-                        <div className="card" key={bumdes.id} onClick={() => showDetails(bumdes)}>
-                            <h3>{bumdes.namabumdesa || 'Nama Tidak Tersedia'}</h3>
-                            <p><strong>Desa:</strong> {bumdes.desa || '-'}</p>
-                            <p><strong>Kecamatan:</strong> {bumdes.kecamatan || '-'}</p>
-                            <p><strong>Status:</strong> {bumdes.status || '-'}</p>
-                        </div>
-                    ))}
+                <div className="bumdes-card-grid">
+                    {filteredData.length > 0 ? (
+                        filteredData.map(bumdes => (
+                            <div className="bumdes-card-item" key={bumdes.id} onClick={() => showDetails(bumdes)}>
+                                <h3 className="bumdes-card-title">{bumdes.namabumdesa || 'Nama Tidak Tersedia'}</h3>
+                                <p><strong>Desa:</strong> {bumdes.desa || '-'}</p>
+                                <p><strong>Kecamatan:</strong> {bumdes.kecamatan || '-'}</p>
+                                <p><strong>Status:</strong> <span className={bumdes.status === 'aktif' ? 'status-active' : 'status-inactive'}>{bumdes.status || '-'}</span></p>
+                            </div>
+                        ))
+                    ) : (
+                        <div className="no-data-message">Tidak ada data yang ditemukan.</div>
+                    )}
                 </div>
             </div>
 
             {modal && (
-                <>
-                    <div className="overlay" onClick={closeDetails}></div>
-                    <div className="message-box details-container">
-                        <button className="close-btn" onClick={closeDetails}>Tutup</button>
-                        <h3>Detail BUMDes - {modal.namabumdesa || '-'}</h3>
-                        {Object.entries(modal).map(([key, value]) => (
-                            <p key={key}><strong>{key}:</strong> {value || '-'}</p>
-                        ))}
+                <div className="overlay" onClick={closeDetails}>
+                    <div className="modal-content" onClick={e => e.stopPropagation()}>
+                        <button className="modal-close-button" onClick={closeDetails}>&times;</button>
+                        <h3 className="modal-title">Detail BUMDes - {modal.namabumdesa || '-'}</h3>
+                        <div className="modal-details-grid">
+                            {Object.entries(modal).map(([key, value]) => {
+                                if (key.includes('id') || key.includes('_id')) return null;
+                                const label = key.replace(/([A-Z])/g, ' $1').trim().replace(/_/g, ' ');
+                                return (
+                                    <div key={key} className="detail-item">
+                                        <span className="detail-label">{label}:</span>
+                                        <span className="detail-value">{value || '-'}</span>
+                                    </div>
+                                );
+                            })}
+                        </div>
                     </div>
-                </>
+                </div>
             )}
         </div>
     );

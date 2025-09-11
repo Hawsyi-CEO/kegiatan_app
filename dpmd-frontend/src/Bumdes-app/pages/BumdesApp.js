@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import BumdesForm from './BumdesForm';
 import BumdesDashboard from './BumdesDashboard';
 import Login from './Login';
-import BumdesEditDashboard from './BumdesEditDashboard'; // Pastikan nama ini sudah benar
+import BumdesEditDashboard from './BumdesEditDashboard';
+import { FaPlus, FaChartBar, FaUserEdit, FaSignOutAlt } from 'react-icons/fa';
 import './bumdes.css';
 
 function BumdesApp() {
@@ -39,8 +40,8 @@ function BumdesApp() {
     };
 
     return (
-        <div className="bg-gray-100 min-h-screen">
-            <div className="custom-container">
+        <div className="app-container">
+            <div className="main-content-wrapper">
                 <div className="header-card">
                     <div className="header-content">
                         <div>
@@ -48,6 +49,11 @@ function BumdesApp() {
                             <p className="header-subtitle">Aplikasi Pengelolaan Data BUMDes</p>
                         </div>
                     </div>
+                    {view === 'edit' && (
+                        <button onClick={handleLogout} className="logout-button">
+                            <FaSignOutAlt /> Keluar
+                        </button>
+                    )}
                 </div>
 
                 <div className="nav-buttons-container">
@@ -55,23 +61,25 @@ function BumdesApp() {
                         onClick={() => handleNavClick('form')}
                         className={`nav-button ${view === 'form' ? 'active' : ''}`}
                     >
-                        Formulir
+                        <FaPlus className="nav-icon" /> Formulir
                     </button>
                     <button
                         onClick={() => handleNavClick('statistik')}
                         className={`nav-button ${view === 'statistik' ? 'active' : ''}`}
                     >
-                        Statistik
+                        <FaChartBar className="nav-icon" /> Statistik
                     </button>
                     <button
                         onClick={() => handleNavClick('login')}
                         className={`nav-button ${view === 'login' || view === 'edit' ? 'active' : ''}`}
                     >
-                        Login & Edit
+                        <FaUserEdit className="nav-icon" /> Login & Edit
                     </button>
                 </div>
 
-                {renderContent()}
+                <div className="content-card">
+                    {renderContent()}
+                </div>
             </div>
         </div>
     );

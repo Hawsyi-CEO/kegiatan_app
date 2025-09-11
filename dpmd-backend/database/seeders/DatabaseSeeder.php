@@ -18,6 +18,8 @@ class DatabaseSeeder extends Seeder
             BidangSeeder::class,
             // Panggil PersonilSeeder
             PersonilSeeder::class,
+            // Panggil BumdesTableSeeder
+            BumdesTableSeeder::class,
         ]);
     }
 }
