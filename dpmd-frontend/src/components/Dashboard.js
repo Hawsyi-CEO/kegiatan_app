@@ -11,8 +11,18 @@ const Dashboard = ({ onFilterClick }) => {
     per_bidang: [],
   });
   const [weeklySchedule, setWeeklySchedule] = useState([]);
-  const [activeActivityIndex, setActiveActivityIndex] = useState({});
-  const carouselIntervals = useRef({});
+  const [selectedDayIndex, setSelectedDayIndex] = useState(0); 
+  const [activeActivityIndex, setActiveActivityIndex] = useState(0);
+  const [isActivityTransitioning, setIsActivityTransitioning] = useState(false);
+  const [isDayTransitioning, setIsDayTransitioning] = useState(false);
+
+  const activityCarouselIntervalRef = useRef(null);
+  const dayTransitionIntervalRef = useRef(null);
+
+  const activityTransitionDuration = 500; // Durasi animasi per kegiatan
+  const dayTransitionDuration = 500; // Durasi animasi per hari
+  const activityDisplayDuration = 5000; // Waktu tampil per kegiatan
+  const extraDelay = 1500; // Jeda tambahan sebelum transisi hari
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -38,38 +48,67 @@ const Dashboard = ({ onFilterClick }) => {
     fetchWeeklySchedule();
   }, []);
 
-  // Logika carousel
+  // Logika carousel kegiatan
   useEffect(() => {
-    // Bersihkan semua interval yang ada sebelum membuat yang baru
-    Object.values(carouselIntervals.current).forEach(clearInterval);
-    
-    weeklySchedule.forEach((day, dayIndex) => {
-      if (day.kegiatan && day.kegiatan.length > 1) {
-        // Buat interval baru untuk setiap hari dengan lebih dari 1 kegiatan
-        const intervalId = setInterval(() => {
-          setActiveActivityIndex(prev => ({
-            ...prev,
-            [dayIndex]: ((prev[dayIndex] || 0) + 1) % day.kegiatan.length,
-          }));
-        }, 5000);
-        
-        carouselIntervals.current[dayIndex] = intervalId;
-      }
-    });
+    if (activityCarouselIntervalRef.current) {
+      clearInterval(activityCarouselIntervalRef.current);
+    }
+    const selectedDay = weeklySchedule[selectedDayIndex];
+    if (selectedDay && selectedDay.kegiatan && selectedDay.kegiatan.length > 1) {
+      activityCarouselIntervalRef.current = setInterval(() => {
+        setIsActivityTransitioning(true);
+        setTimeout(() => {
+          setActiveActivityIndex(prevIndex => (prevIndex + 1) % selectedDay.kegiatan.length);
+          setIsActivityTransitioning(false);
+        }, activityTransitionDuration);
+      }, activityDisplayDuration); 
+    } else {
+      setActiveActivityIndex(0);
+      setIsActivityTransitioning(false);
+    }
 
-    // Fungsi cleanup untuk membersihkan interval saat komponen di-unmount
     return () => {
-      Object.values(carouselIntervals.current).forEach(clearInterval);
+      if (activityCarouselIntervalRef.current) {
+        clearInterval(activityCarouselIntervalRef.current);
+      }
     };
-  }, [weeklySchedule]);
+  }, [weeklySchedule, selectedDayIndex]);
+
+  // Logika transisi hari otomatis
+  useEffect(() => {
+    if (dayTransitionIntervalRef.current) {
+      clearInterval(dayTransitionIntervalRef.current);
+    }
+
+    const selectedDay = weeklySchedule[selectedDayIndex];
+    if (selectedDay && weeklySchedule.length > 1) {
+      const totalActivities = selectedDay.kegiatan.length;
+      const totalTimeForDay = (totalActivities > 0 ? totalActivities : 1) * activityDisplayDuration;
+
+      dayTransitionIntervalRef.current = setInterval(() => {
+        setIsDayTransitioning(true);
+        setTimeout(() => {
+          setSelectedDayIndex(prevIndex => (prevIndex + 1) % weeklySchedule.length);
+          setActiveActivityIndex(0);
+          setIsDayTransitioning(false);
+        }, dayTransitionDuration);
+      }, totalTimeForDay + extraDelay);
+    }
+
+    return () => {
+      if (dayTransitionIntervalRef.current) {
+        clearInterval(dayTransitionIntervalRef.current);
+      }
+    };
+  }, [weeklySchedule, selectedDayIndex]);
 
   const renderPersonilList = (personilString) => {
-    if (!personilString) return <p className="no-activity-message">Tidak ada personel.</p>;
+    if (!personilString) return <p className="text-gray-600 text-sm">Tidak ada personel.</p>;
     
     const personilNames = personilString.split(',').map(name => name.trim()).filter(Boolean);
 
     return (
-      <ul className="list-disc list-inside ml-4 text-gray-600 text-sm">
+      <ul className="list-disc list-inside">
         {personilNames.map((person, index) => (
           <li key={index}>{person}</li>
         ))}
@@ -77,8 +116,10 @@ const Dashboard = ({ onFilterClick }) => {
     );
   };
 
+  const selectedDay = weeklySchedule[selectedDayIndex];
+
   return (
-    <div className="fade-in">
+    <div className="fade-in custom-container">
       <h3 className="dashboard-heading">Ringkasan Kegiatan</h3>
       <div className="dashboard-summary-grid">
         <div className="dashboard-card" onClick={() => onFilterClick('mingguan')}>
@@ -111,44 +152,98 @@ const Dashboard = ({ onFilterClick }) => {
       </div>
 
       <h3 className="weekly-schedule-heading">Jadwal Mingguan</h3>
-      <div id="jadwal-mingguan-container" className="weekly-schedule-grid">
-        {weeklySchedule.length > 0 ? weeklySchedule.map((day, dayIndex) => (
-          <div key={day.tanggal} className="day-container">
-            <div className="day-header">
-              <span className="day-title"><i className="fas fa-calendar-day"></i>{day.hari}</span>
-              <span className="day-date">{new Date(day.tanggal).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })}</span>
-            </div>
-            {day.kegiatan && day.kegiatan.length > 0 ? (
-              day.kegiatan.map((keg, index) => (
-                <div 
-                  key={index} 
-                  className={`activity-card-new ${index === (activeActivityIndex[dayIndex] || 0) ? 'active-activity' : 'hidden-activity'}`}
-                >
-                  <h5>
-                    <i className="fas fa-clipboard-list"></i>{keg.nama_kegiatan}
-                  </h5>
-                  <p className="location">
-                    <i className="fas fa-map-marker-alt"></i> {keg.lokasi}
-                  </p>
-                  <div className="activity-card-details">
-                    {keg.details && keg.details.length > 0 ? (
-                      keg.details.map((detail, detailIndex) => (
-                        <div key={detailIndex} className="activity-card-detail-item">
-                          <span>{detail.nama_bidang}:</span>
-                          {renderPersonilList(detail.personil)}
-                        </div>
-                      ))
-                    ) : (
-                      <p className="no-activity-message">Tidak ada personel.</p>
-                    )}
-                  </div>
+      <div className="weekly-schedule-container">
+        <div className="calendar-card">
+          <h4 className="calendar-header"><i className="fas fa-calendar-alt"></i> Kalender Mingguan</h4>
+          <div className="calendar-list">
+            {weeklySchedule.length > 0 ? weeklySchedule.map((day, index) => (
+              <div 
+                key={day.tanggal} 
+                className={`calendar-day-item ${selectedDayIndex === index ? 'active' : ''}`}
+                onClick={() => {
+                  setSelectedDayIndex(index);
+                  setActiveActivityIndex(0); 
+                  clearInterval(activityCarouselIntervalRef.current);
+                  clearInterval(dayTransitionIntervalRef.current);
+                  setIsActivityTransitioning(false);
+                  setIsDayTransitioning(false);
+                }}
+              >
+                <div className="calendar-day-info">
+                  <div className="day-name">{day.hari}</div>
+                  <div className="day-date-text">{new Date(day.tanggal).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })}</div>
                 </div>
-              ))
-            ) : (
-              <p className="no-activity-message">Tidak ada kegiatan.</p>
+                <div className="calendar-day-count">{day.kegiatan?.length || 0} kegiatan</div>
+              </div>
+            )) : (
+              <p className="no-activity-message">Tidak ada jadwal.</p>
             )}
           </div>
-        )) : <p className="no-activity-message">Tidak ada kegiatan terjadwal minggu ini.</p>}
+        </div>
+
+        <div className={`activity-card-container ${isDayTransitioning ? 'fade-out-down' : 'fade-in-up'}`}>
+          {selectedDay ? (
+            <>
+              <h4 className="activity-card-header">
+                <i className="fas fa-clipboard-list"></i>
+                Kegiatan pada {selectedDay.hari}, {new Date(selectedDay.tanggal).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })}
+              </h4>
+              <div className="activity-carousel-wrapper">
+                {selectedDay.kegiatan && selectedDay.kegiatan.length > 0 ? (
+                  selectedDay.kegiatan.map((keg, index) => (
+                    <div 
+                      key={index} 
+                      className={`activity-card-new ${index === activeActivityIndex && !isActivityTransitioning ? 'fade-in-up' : 'fade-out-down-hidden'}`}
+                      style={{ transitionDuration: `${activityTransitionDuration}ms` }}
+                    >
+                      <h5>
+                        <i className="fas fa-clipboard-list"></i>{keg.nama_kegiatan}
+                      </h5>
+                      <p className="location">
+                        <i className="fas fa-map-marker-alt"></i> {keg.lokasi}
+                      </p>
+                      <div className="activity-card-details">
+                        {keg.details && keg.details.length > 0 ? (
+                          keg.details.map((detail, detailIndex) => (
+                            <div key={detailIndex} className="activity-card-detail-item">
+                              <span>{detail.nama_bidang}:</span>
+                              {renderPersonilList(detail.personil)}
+                            </div>
+                          ))
+                        ) : (
+                          <p className="no-activity-message">Tidak ada personel.</p>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="no-activity-message">Tidak ada kegiatan pada hari ini.</p>
+                )}
+              </div>
+              {selectedDay?.kegiatan?.length > 1 && (
+                <div className="carousel-dots">
+                  {selectedDay.kegiatan.map((_, dotIndex) => (
+                    <span 
+                      key={dotIndex} 
+                      className={`dot ${activeActivityIndex === dotIndex ? 'active' : ''}`}
+                      onClick={() => {
+                        setIsActivityTransitioning(true);
+                        setTimeout(() => {
+                          setActiveActivityIndex(dotIndex);
+                          setIsActivityTransitioning(false);
+                        }, activityTransitionDuration);
+                        clearInterval(activityCarouselIntervalRef.current);
+                        clearInterval(dayTransitionIntervalRef.current);
+                      }}
+                    ></span>
+                  ))}
+                </div>
+              )}
+            </>
+          ) : (
+            <p className="no-activity-message" style={{ marginTop: '5rem', fontSize: '1.25rem' }}>Pilih hari di kalender untuk melihat kegiatan.</p>
+          )}
+        </div>
       </div>
     </div>
   );

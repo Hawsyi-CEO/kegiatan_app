@@ -1,26 +1,35 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { FaPaperPlane, FaSpinner } from 'react-icons/fa';
 import './bumdes.css';
 
 const formSections = [
-    { id: 'identitas', title: 'Identitas BUMDes', icon: '📝' },
-    { id: 'status', title: 'Status BUMDes', icon: '🚦' },
-    { id: 'legalitas', title: 'Legalitas', icon: '📜' },
-    { id: 'pengurus', title: 'Profil Pengurus', icon: '👨‍💼' },
-    { id: 'organisasi', title: 'Profil Organisasi', icon: '🏢' },
-    { id: 'usaha', title: 'Usaha BUMDes', icon: '💼' },
-    { id: 'permodalan', title: 'Permodalan dan Aset', icon: '💰' },
-    { id: 'kemitraan', title: 'Kemitraan', icon: '🤝' },
-    { id: 'kontribusi', title: 'Kontribusi PADes', icon: '📈' },
-    { id: 'peran', title: 'Peran BUMDes', icon: '🌟' },
-    { id: 'bantuan', title: 'Bantuan', icon: '🎁' },
-    { id: 'laporan', title: 'Laporan Keuangan', icon: '📄' },
-    { id: 'dokumen', title: 'Dokumen Pendirian', icon: '📁' },
+    { id: 'identitas', title: 'Identitas BUMDes' },
+    { id: 'status', title: 'Status BUMDes' },
+    { id: 'legalitas', title: 'Legalitas' },
+    { id: 'pengurus', title: 'Profil Pengurus' },
+    { id: 'organisasi', title: 'Profil Organisasi' },
+    { id: 'usaha', title: 'Usaha BUMDes' },
+    { id: 'permodalan', title: 'Permodalan dan Aset' },
+    { id: 'kemitraan', title: 'Kemitraan' },
+    { id: 'kontribusi', title: 'Kontribusi PADes' },
+    { id: 'peran', title: 'Peran BUMDes' },
+    { id: 'bantuan', title: 'Bantuan' },
+    { id: 'laporan', title: 'Laporan Keuangan' },
+    { id: 'dokumen', title: 'Dokumen Pendirian' },
 ];
 
 const initialFormData = {
-    kecamatan: '', desa: '', namabumdesa: '', status: 'aktif', keterangan_tidak_aktif: '', NIB: '', LKPP: '', NPWP: '', badanhukum: '',
+    kode_desa: '', 
+    kecamatan: '',
+    desa: '',
+    namabumdesa: '',
+    status: 'aktif',
+    keterangan_tidak_aktif: '',
+    NIB: '',
+    LKPP: '',
+    NPWP: '',
+    badanhukum: '',
     NamaPenasihat: '', JenisKelaminPenasihat: '', HPPenasihat: '', NamaPengawas: '', JenisKelaminPengawas: '', HPPengawas: '',
     NamaDirektur: '', JenisKelaminDirektur: '', HPDirektur: '', NamaSekretaris: '', JenisKelaminSekretaris: '', HPSekretaris: '',
     NamaBendahara: '', JenisKelaminBendahara: '', HPBendahara: '', TahunPendirian: '', AlamatBumdesa: '', Alamatemail: '',
@@ -50,6 +59,34 @@ function BumdesForm() {
     const [activeSection, setActiveSection] = useState('identitas');
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState({ text: '', type: '' });
+    
+    const [allIdentitasData, setAllIdentitasData] = useState([]);
+    const [uniqueKecamatan, setUniqueKecamatan] = useState([]);
+    const [desaByKecamatan, setDesaByKecamatan] = useState([]);
+
+    useEffect(() => {
+        const fetchIdentitasData = async () => {
+            try {
+                const response = await axios.get('/api/identitas-bumdes');
+                setAllIdentitasData(response.data);
+                
+                const uniqueKec = [...new Set(response.data.map(item => item.kecamatan))].sort();
+                setUniqueKecamatan(uniqueKec);
+            } catch (error) {
+                console.error('Gagal mengambil data identitas:', error);
+            }
+        };
+        fetchIdentitasData();
+    }, []);
+
+    useEffect(() => {
+        if (formData.kecamatan) {
+            const desaList = allIdentitasData.filter(item => item.kecamatan === formData.kecamatan);
+            setDesaByKecamatan(desaList.sort((a, b) => a.desa.localeCompare(b.desa)));
+        } else {
+            setDesaByKecamatan([]);
+        }
+    }, [formData.kecamatan, allIdentitasData]);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -57,6 +94,37 @@ function BumdesForm() {
             setFormData({ ...formData, [name]: parseRupiah(value) });
         } else {
             setFormData({ ...formData, [name]: value });
+        }
+    };
+
+    const handleKecamatanChange = (e) => {
+        const selectedKecamatan = e.target.value;
+        setFormData(prev => ({
+            ...prev,
+            kecamatan: selectedKecamatan,
+            desa: '', 
+            kode_desa: '',
+        }));
+    };
+
+    const handleDesaChange = (e) => {
+        const selectedKodeDesa = e.target.value;
+        const selectedDesa = allIdentitasData.find(d => d.kode_desa === selectedKodeDesa);
+        
+        if (selectedDesa) {
+            setFormData(prev => ({
+                ...prev,
+                kode_desa: selectedDesa.kode_desa,
+                desa: selectedDesa.desa,
+                kecamatan: selectedDesa.kecamatan,
+            }));
+        } else {
+             setFormData(prev => ({
+                ...prev,
+                kode_desa: '',
+                desa: '',
+                kecamatan: '',
+            }));
         }
     };
 
@@ -71,7 +139,9 @@ function BumdesForm() {
 
         const dataToSend = new FormData();
         for (const key in formData) {
-            dataToSend.append(key, formData[key]);
+            if (formData[key] !== null) {
+                dataToSend.append(key, formData[key]);
+            }
         }
         
         try {
@@ -95,9 +165,56 @@ function BumdesForm() {
                 return (
                     <div className="form-section">
                         <h2 className="form-section-title">Identitas BUMDes</h2>
-                        <label className="form-group">Nama BUMDesa: <input type="text" name="namabumdesa" value={formData.namabumdesa} onChange={handleChange} required className="form-input" /></label>
-                        <label className="form-group">Kecamatan: <input type="text" name="kecamatan" value={formData.kecamatan} onChange={handleChange} className="form-input" /></label>
-                        <label className="form-group">Desa: <input type="text" name="desa" value={formData.desa} onChange={handleChange} required className="form-input" /></label>
+                        
+                        <div className="form-group">
+                            <label className="form-label">Nama BUMDesa:</label>
+                            <input type="text" name="namabumdesa" value={formData.namabumdesa} onChange={handleChange} required className="form-input" />
+                        </div>
+
+                        <div className="form-group">
+                            <label className="form-label">Kecamatan:</label>
+                            <select 
+                                name="kecamatan" 
+                                value={formData.kecamatan} 
+                                onChange={handleKecamatanChange}
+                                className="form-select"
+                                required
+                            >
+                                <option value="">Pilih Kecamatan</option>
+                                {uniqueKecamatan.map(kec => (
+                                    <option key={kec} value={kec}>{kec}</option>
+                                ))}
+                            </select>
+                        </div>
+                        
+                        <div className="form-group">
+                            <label className="form-label">Desa:</label>
+                            <select 
+                                name="desa" 
+                                value={formData.kode_desa} 
+                                onChange={handleDesaChange}
+                                className="form-select"
+                                required
+                                disabled={!formData.kecamatan}
+                            >
+                                <option value="">Pilih Desa</option>
+                                {desaByKecamatan.map(desa => (
+                                    <option key={desa.kode_desa} value={desa.kode_desa}>{desa.desa}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className="form-group">
+                            <label className="form-label">Kode Desa:</label>
+                            <input 
+                                type="text" 
+                                name="kode_desa" 
+                                value={formData.kode_desa} 
+                                readOnly 
+                                className="form-input" 
+                                placeholder="Kode Desa akan terisi otomatis" 
+                            />
+                        </div>
                     </div>
                 );
             case 'status':
@@ -143,18 +260,18 @@ function BumdesForm() {
                     <div className="form-section">
                         <h2 className="form-section-title">Profil Pengurus</h2>
                         {Object.keys(initialFormData).filter(key => key.startsWith('Nama') || key.startsWith('JenisKelamin') || key.startsWith('HP')).map(key => (
-                             <label key={key} className="form-group">
-                                {key.replace(/([A-Z])/g, ' $1').trim().replace(/_/g, ' ')}:
-                                {key.startsWith('JenisKelamin') ? (
-                                    <select name={key} value={formData[key]} onChange={handleChange} className="form-select">
-                                        <option value="">-</option>
-                                        <option value="laki-laki">Laki-Laki</option>
-                                        <option value="perempuan">Perempuan</option>
-                                    </select>
-                                ) : (
-                                    <input type="text" name={key} value={formData[key] || ''} onChange={handleChange} className="form-input" />
-                                )}
-                            </label>
+                               <label key={key} className="form-group">
+                                   {key.replace(/([A-Z])/g, ' $1').trim().replace(/_/g, ' ')}:
+                                   {key.startsWith('JenisKelamin') ? (
+                                       <select name={key} value={formData[key]} onChange={handleChange} className="form-select">
+                                           <option value="">-</option>
+                                           <option value="laki-laki">Laki-Laki</option>
+                                           <option value="perempuan">Perempuan</option>
+                                       </select>
+                                   ) : (
+                                       <input type="text" name={key} value={formData[key] || ''} onChange={handleChange} className="form-input" />
+                                   )}
+                               </label>
                         ))}
                     </div>
                 );
@@ -311,17 +428,20 @@ function BumdesForm() {
         <div className="form-page-container">
             <nav className="sidebar">
                 {formSections.map(section => (
-                    <button key={section.id} onClick={() => setActiveSection(section.id)} className={`sidebar-button ${activeSection === section.id ? 'active' : ''}`}>
-                        <span className="sidebar-icon">{section.icon}</span> {section.title}
+                    <button 
+                        key={section.id} 
+                        onClick={() => setActiveSection(section.id)} 
+                        className={`sidebar-button ${activeSection === section.id ? 'active' : ''}`}
+                    >
+                        {section.title}
                     </button>
                 ))}
             </nav>
             <form onSubmit={handleSubmit} className="form-content">
-                <div className="logo"><img src="/logo.png" alt="Logo" /></div>
                 {renderSection()}
                 <button type="submit" disabled={loading} className="submit-button">
                     {loading ? <FaSpinner className="spinner" /> : <FaPaperPlane />}
-                    {loading ? 'Mengirim...' : 'Simpan Data'}
+                    {loading ? 'Mengirim...' : 'Next'}
                 </button>
             </form>
 

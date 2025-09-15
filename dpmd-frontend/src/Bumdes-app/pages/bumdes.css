@@ -2,8 +2,8 @@
 
 /* --- Color & Font Variables --- */
 :root {
-    --primary-color: #4CAF50; /* Green */
-    --secondary-color: #2196F3; /* Blue */
+    --primary-color: #020223; /* Green */
+    --secondary-color: #03062b; /* Blue */
     --accent-color: #FFC107; /* Yellow */
     --background-light: #F8F9FA;
     --background-card: #FFFFFF;
@@ -42,6 +42,7 @@ body {
     border-radius: 20px;
     box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
     display: flex;
+    margin-bottom: 3vh;
     justify-content: space-between;
     align-items: center;
     transition: transform 0.3s ease;
@@ -68,6 +69,7 @@ body {
 .nav-buttons-container {
     display: flex;
     gap: 15px;
+    
 }
 
 .nav-button {
@@ -93,13 +95,13 @@ body {
 }
 
 .nav-button.active {
-    background: linear-gradient(45deg, var(--secondary-color), #5C78E4);
+    background: linear-gradient(45deg, var(--secondary-color), #00061d);
     color: white;
     box-shadow: 0 5px 20px rgba(33, 150, 243, 0.4);
 }
 
 .nav-icon {
-    margin-right: 8px;
+    margin-right: 10px;
 }
 
 .content-card {

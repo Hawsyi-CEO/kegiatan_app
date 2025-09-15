@@ -14,12 +14,10 @@ class DatabaseSeeder extends Seeder
     public function run()
     {
         $this->call([
-            // Panggil BidangSeeder
             BidangSeeder::class,
-            // Panggil PersonilSeeder
             PersonilSeeder::class,
-            // Panggil BumdesTableSeeder
             BumdesTableSeeder::class,
+            InitialBumdesDataSeeder::class,
         ]);
     }
 }
