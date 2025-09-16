@@ -118,7 +118,7 @@ class BumdesController extends Controller
                 'AnggaranDasar' => 'nullable|file|mimes:pdf,docx,doc|max:5120',
                 'AnggaranRumahTangga' => 'nullable|file|mimes:pdf,docx,doc|max:5120',
                 'ProgramKerja' => 'nullable|file|mimes:pdf,docx,doc|max:5120',
-                'SK_BUM_Desa' => 'required|file|mimes:pdf,docx,doc|max:5120',
+                'SK_BUM_Desa' => 'nullable|file|mimes:pdf,docx,doc|max:5120',
             ]);
 
             $bumdes = Bumdes::create($validatedData);

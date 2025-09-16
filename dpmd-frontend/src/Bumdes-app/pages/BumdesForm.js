@@ -3,6 +3,32 @@ import axios from 'axios';
 import { FaPaperPlane, FaSpinner } from 'react-icons/fa';
 import './bumdes.css';
 
+// Komponen Pop-up yang baru
+const Modal = ({ show, onClose, title, message, type }) => {
+    if (!show) {
+        return null;
+    }
+
+    const modalClass = `modal ${type}`;
+
+    return (
+        <div className="modal-overlay">
+            <div className={modalClass}>
+                <div className="modal-header">
+                    <h4 className="modal-title">{title}</h4>
+                    <button onClick={onClose} className="modal-close-button">&times;</button>
+                </div>
+                <div className="modal-body">
+                    <p>{message}</p>
+                </div>
+                <div className="modal-footer">
+                    <button onClick={onClose} className="modal-button">Tutup</button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const formSections = [
     { id: 'identitas', title: 'Identitas BUMDes' },
     { id: 'status', title: 'Status BUMDes' },
@@ -20,7 +46,7 @@ const formSections = [
 ];
 
 const initialFormData = {
-    kode_desa: '', 
+    kode_desa: '',
     kecamatan: '',
     desa: '',
     namabumdesa: '',
@@ -59,7 +85,9 @@ function BumdesForm() {
     const [activeSection, setActiveSection] = useState('identitas');
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState({ text: '', type: '' });
-    
+    const [hasSubmitted, setHasSubmitted] = useState(false);
+    const [modalShow, setModalShow] = useState(false);
+
     const [allIdentitasData, setAllIdentitasData] = useState([]);
     const [uniqueKecamatan, setUniqueKecamatan] = useState([]);
     const [desaByKecamatan, setDesaByKecamatan] = useState([]);
@@ -67,25 +95,39 @@ function BumdesForm() {
     useEffect(() => {
         const fetchIdentitasData = async () => {
             try {
-                // Pastikan URL API sudah benar
                 const response = await axios.get('/api/identitas-bumdes');
                 const data = response.data;
                 setAllIdentitasData(data);
-                
-                // Ambil semua kecamatan unik dari data yang diterima
                 const uniqueKec = [...new Set(data.map(item => item.kecamatan))].sort();
                 setUniqueKecamatan(uniqueKec);
             } catch (error) {
                 console.error('Gagal mengambil data identitas:', error);
                 setMessage({ text: 'Gagal memuat data kecamatan dan desa. Coba refresh halaman.', type: 'error' });
+                setModalShow(true);
             }
         };
         fetchIdentitasData();
     }, []);
 
     useEffect(() => {
+        const savedData = localStorage.getItem('bumdesFormData');
+        if (savedData) {
+            const parsedData = JSON.parse(savedData);
+            setFormData(prev => ({
+                ...prev,
+                ...parsedData,
+            }));
+            const submittedDesas = JSON.parse(localStorage.getItem('submittedDesas')) || [];
+            if (submittedDesas.includes(parsedData.kode_desa)) {
+                setHasSubmitted(true);
+                setMessage({ text: `Desa ini (${parsedData.desa}) sudah mengisi form. Anda tidak bisa mengisinya lagi.`, type: 'info' });
+                setModalShow(true);
+            }
+        }
+    }, []);
+
+    useEffect(() => {
         if (formData.kecamatan) {
-            // Filter desa berdasarkan kecamatan yang dipilih
             const desaList = allIdentitasData.filter(item => item.kecamatan === formData.kecamatan);
             setDesaByKecamatan(desaList.sort((a, b) => a.desa.localeCompare(b.desa)));
         } else {
@@ -107,16 +149,27 @@ function BumdesForm() {
         setFormData(prev => ({
             ...prev,
             kecamatan: selectedKecamatan,
-            desa: '', // Reset desa ketika kecamatan berubah
-            kode_desa: '', // Reset kode_desa ketika kecamatan berubah
+            desa: '',
+            kode_desa: '',
         }));
     };
 
     const handleDesaChange = (e) => {
         const selectedKodeDesa = e.target.value;
         const selectedDesa = allIdentitasData.find(d => d.kode_desa === selectedKodeDesa);
-        
+
         if (selectedDesa) {
+            const submittedDesas = JSON.parse(localStorage.getItem('submittedDesas')) || [];
+            if (submittedDesas.includes(selectedDesa.kode_desa)) {
+                setHasSubmitted(true);
+                setMessage({ text: `Desa ini (${selectedDesa.desa}) sudah mengisi form. Anda tidak bisa mengisinya lagi.`, type: 'info' });
+                setModalShow(true);
+            } else {
+                setHasSubmitted(false);
+                setMessage({ text: '', type: '' });
+                setModalShow(false);
+            }
+
             setFormData(prev => ({
                 ...prev,
                 kode_desa: selectedDesa.kode_desa,
@@ -124,11 +177,11 @@ function BumdesForm() {
                 kecamatan: selectedDesa.kecamatan,
             }));
         } else {
-             setFormData(prev => ({
-                 ...prev,
-                 kode_desa: '',
-                 desa: '',
-             }));
+            setFormData(prev => ({
+                ...prev,
+                kode_desa: '',
+                desa: '',
+            }));
         }
     };
 
@@ -136,32 +189,93 @@ function BumdesForm() {
         setFormData({ ...formData, [e.target.name]: e.target.files[0] });
     };
 
+    const handleNext = () => {
+        if (activeSection === 'identitas') {
+            if (!formData.namabumdesa || !formData.kecamatan || !formData.kode_desa) {
+                setMessage({ text: 'Harap lengkapi Nama BUMDesa, Kecamatan, dan Desa sebelum melanjutkan.', type: 'error' });
+                setModalShow(true);
+                return;
+            }
+        }
+        
+        const currentIndex = formSections.findIndex(section => section.id === activeSection);
+        if (currentIndex < formSections.length - 1) {
+            // Gabungkan data dari form saat ini dengan data di localStorage (jika ada)
+            // Simpan data non-file ke localStorage
+            const nonFileFormData = Object.fromEntries(
+                Object.entries(formData).filter(([key, value]) => !(value instanceof File))
+            );
+            localStorage.setItem('bumdesFormData', JSON.stringify(nonFileFormData));
+            
+            setActiveSection(formSections[currentIndex + 1].id);
+            setMessage({ text: '', type: '' });
+            setModalShow(false);
+        }
+    };
+
+    const handlePrev = () => {
+        const currentIndex = formSections.findIndex(section => section.id === activeSection);
+        if (currentIndex > 0) {
+            setActiveSection(formSections[currentIndex - 1].id);
+        }
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
         setMessage({ text: '', type: '' });
+        setModalShow(false);
 
-        const dataToSend = new FormData();
+        // Ambil data non-file dari localStorage
+        const savedDataFromLocalStorage = JSON.parse(localStorage.getItem('bumdesFormData')) || {};
+
+        // Gabungkan data non-file dari localStorage dengan data file yang ada di state saat ini
+        const finalData = { ...savedDataFromLocalStorage };
         for (const key in formData) {
-            if (formData[key] !== null) {
-                dataToSend.append(key, formData[key]);
+            if (formData[key] instanceof File) {
+                finalData[key] = formData[key];
             }
         }
-        
+
+        // Siapkan objek FormData untuk dikirim
+        const dataToSend = new FormData();
+        for (const key in finalData) {
+            if (finalData[key] !== null && finalData[key] !== undefined) {
+                if (finalData[key] instanceof File) {
+                    dataToSend.append(key, finalData[key], finalData[key].name);
+                } else {
+                    dataToSend.append(key, finalData[key]);
+                }
+            }
+        }
+
         try {
             const response = await axios.post('/api/bumdes', dataToSend, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
-            setMessage({ text: response.data.message, type: 'success' });
+
+            const submittedDesas = JSON.parse(localStorage.getItem('submittedDesas')) || [];
+            submittedDesas.push(finalData.kode_desa);
+            localStorage.setItem('submittedDesas', JSON.stringify(submittedDesas));
+
+            localStorage.removeItem('bumdesFormData');
             setFormData(initialFormData);
             setActiveSection('identitas');
+            setHasSubmitted(true);
+            setMessage({ text: response.data.message, type: 'success' });
+            setModalShow(true);
+
         } catch (error) {
             console.error(error);
-            setMessage({ text: 'Gagal mengirim data: ' + (error.response?.data?.message || error.message), type: 'error' });
+            const errorMessage = error.response?.data?.message || error.message;
+            setMessage({ text: 'Gagal mengirim data: ' + errorMessage, type: 'error' });
+            setModalShow(true);
         } finally {
             setLoading(false);
         }
     };
+    
+    const isLastSection = activeSection === formSections[formSections.length - 1].id;
 
     const renderSection = () => {
         switch (activeSection) {
@@ -169,20 +283,20 @@ function BumdesForm() {
                 return (
                     <div className="form-section">
                         <h2 className="form-section-title">Identitas BUMDes</h2>
-                        
+
                         <div className="form-group">
                             <label className="form-label">Nama BUMDesa:</label>
-                            <input type="text" name="namabumdesa" value={formData.namabumdesa} onChange={handleChange} required className="form-input" />
+                            <input type="text" name="namabumdesa" value={formData.namabumdesa} onChange={handleChange} className="form-input" disabled={hasSubmitted} />
                         </div>
 
                         <div className="form-group">
                             <label className="form-label">Kecamatan:</label>
-                            <select 
-                                name="kecamatan" 
-                                value={formData.kecamatan} 
+                            <select
+                                name="kecamatan"
+                                value={formData.kecamatan}
                                 onChange={handleKecamatanChange}
                                 className="form-select"
-                                required
+                                disabled={hasSubmitted}
                             >
                                 <option value="">Pilih Kecamatan</option>
                                 {uniqueKecamatan.map(kec => (
@@ -190,16 +304,15 @@ function BumdesForm() {
                                 ))}
                             </select>
                         </div>
-                        
+
                         <div className="form-group">
                             <label className="form-label">Desa:</label>
-                            <select 
-                                name="desa" 
-                                value={formData.kode_desa} 
+                            <select
+                                name="desa"
+                                value={formData.kode_desa}
                                 onChange={handleDesaChange}
                                 className="form-select"
-                                required
-                                disabled={!formData.kecamatan}
+                                disabled={!formData.kecamatan || hasSubmitted}
                             >
                                 <option value="">Pilih Desa</option>
                                 {desaByKecamatan.map(desa => (
@@ -210,13 +323,14 @@ function BumdesForm() {
 
                         <div className="form-group">
                             <label className="form-label">Kode Desa:</label>
-                            <input 
-                                type="text" 
-                                name="kode_desa" 
-                                value={formData.kode_desa} 
-                                readOnly 
-                                className="form-input" 
-                                placeholder="Kode Desa akan terisi otomatis" 
+                            <input
+                                type="text"
+                                name="kode_desa"
+                                value={formData.kode_desa}
+                                readOnly
+                                className="form-input"
+                                placeholder="Kode Desa akan terisi otomatis"
+                                disabled={hasSubmitted}
                             />
                         </div>
                     </div>
@@ -225,14 +339,14 @@ function BumdesForm() {
                 return (
                     <div className="form-section">
                         <h2 className="form-section-title">Status BUMDesa</h2>
-                        <label className="form-group">Status 2025: 
-                            <select name="status" value={formData.status} onChange={handleChange} className="form-select">
+                        <label className="form-group">Status 2025:
+                            <select name="status" value={formData.status} onChange={handleChange} className="form-select" disabled={hasSubmitted}>
                                 <option value="aktif">Aktif</option>
                                 <option value="tidak aktif">Tidak Aktif</option>
                             </select>
                         </label>
                         <label className="form-group">Keterangan Tidak Aktif:
-                            <select name="keterangan_tidak_aktif" value={formData.keterangan_tidak_aktif} onChange={handleChange} className="form-select">
+                            <select name="keterangan_tidak_aktif" value={formData.keterangan_tidak_aktif} onChange={handleChange} className="form-select" disabled={hasSubmitted}>
                                 <option value="">-</option>
                                 <option value="Ada pengurus, tidak ada usaha">Ada pengurus, tidak ada usaha</option>
                                 <option value="Tidak ada pengurus, ada usaha">Tidak ada pengurus, ada usaha</option>
@@ -245,11 +359,11 @@ function BumdesForm() {
                 return (
                     <div className="form-section">
                         <h2 className="form-section-title">Legalitas</h2>
-                        <label className="form-group">NIB: <input type="text" name="NIB" value={formData.NIB} onChange={handleChange} placeholder="masukan nomor NIB.." className="form-input" /></label>
-                        <label className="form-group">LKPP: <input type="text" name="LKPP" value={formData.LKPP} onChange={handleChange} placeholder="masukan nomor LKPP.." className="form-input" /></label>
-                        <label className="form-group">NPWP: <input type="text" name="NPWP" value={formData.NPWP} onChange={handleChange} placeholder="masukan nomor NPWP.." className="form-input" /></label>
+                        <label className="form-group">NIB: <input type="text" name="NIB" value={formData.NIB} onChange={handleChange} placeholder="masukan nomor NIB.." className="form-input" disabled={hasSubmitted} /></label>
+                        <label className="form-group">LKPP: <input type="text" name="LKPP" value={formData.LKPP} onChange={handleChange} placeholder="masukan nomor LKPP.." className="form-input" disabled={hasSubmitted} /></label>
+                        <label className="form-group">NPWP: <input type="text" name="NPWP" value={formData.NPWP} onChange={handleChange} placeholder="masukan nomor NPWP.." className="form-input" disabled={hasSubmitted} /></label>
                         <label className="form-group">Status Badan Hukum:
-                            <select name="badanhukum" value={formData.badanhukum} onChange={handleChange} className="form-select">
+                            <select name="badanhukum" value={formData.badanhukum} onChange={handleChange} className="form-select" disabled={hasSubmitted}>
                                 <option value="">-</option>
                                 <option value="Belum Melakukan Proses">Belum Melakukan Proses</option>
                                 <option value="Nama Terverifikasi">Nama Terverifikasi</option>
@@ -264,18 +378,18 @@ function BumdesForm() {
                     <div className="form-section">
                         <h2 className="form-section-title">Profil Pengurus</h2>
                         {Object.keys(initialFormData).filter(key => key.startsWith('Nama') || key.startsWith('JenisKelamin') || key.startsWith('HP')).map(key => (
-                               <label key={key} className="form-group">
-                                    {key.replace(/([A-Z])/g, ' $1').trim().replace(/_/g, ' ')}:
-                                    {key.startsWith('JenisKelamin') ? (
-                                        <select name={key} value={formData[key]} onChange={handleChange} className="form-select">
-                                            <option value="">-</option>
-                                            <option value="laki-laki">Laki-Laki</option>
-                                            <option value="perempuan">Perempuan</option>
-                                        </select>
-                                    ) : (
-                                        <input type="text" name={key} value={formData[key] || ''} onChange={handleChange} className="form-input" />
-                                    )}
-                               </label>
+                            <label key={key} className="form-group">
+                                {key.replace(/([A-Z])/g, ' $1').trim().replace(/_/g, ' ')}:
+                                {key.startsWith('JenisKelamin') ? (
+                                    <select name={key} value={formData[key]} onChange={handleChange} className="form-select" disabled={hasSubmitted}>
+                                        <option value="">-</option>
+                                        <option value="laki-laki">Laki-Laki</option>
+                                        <option value="perempuan">Perempuan</option>
+                                    </select>
+                                ) : (
+                                    <input type="text" name={key} value={formData[key] || ''} onChange={handleChange} className="form-input" disabled={hasSubmitted} />
+                                )}
+                            </label>
                         ))}
                     </div>
                 );
@@ -283,11 +397,11 @@ function BumdesForm() {
                 return (
                     <div className="form-section">
                         <h2 className="form-section-title">Profil Organisasi BUMDesa</h2>
-                        <label className="form-group">Tahun Pendirian: <input type="text" name="TahunPendirian" value={formData.TahunPendirian} onChange={handleChange} className="form-input" /></label>
-                        <label className="form-group">Alamat Bumdesa: <input type="text" name="AlamatBumdesa" value={formData.AlamatBumdesa} onChange={handleChange} className="form-input" /></label>
-                        <label className="form-group">Alamat email: <input type="text" name="Alamatemail" value={formData.Alamatemail} onChange={handleChange} className="form-input" /></label>
-                        <label className="form-group">Total Tenaga Kerja: <input type="text" name="TotalTenagaKerja" value={formData.TotalTenagaKerja} onChange={handleChange} className="form-input" /></label>
-                        <label className="form-group">No Telfon BUMDesa: <input type="text" name="TelfonBumdes" value={formData.TelfonBumdes} onChange={handleChange} className="form-input" /></label>
+                        <label className="form-group">Tahun Pendirian: <input type="text" name="TahunPendirian" value={formData.TahunPendirian} onChange={handleChange} className="form-input" disabled={hasSubmitted} /></label>
+                        <label className="form-group">Alamat Bumdesa: <input type="text" name="AlamatBumdesa" value={formData.AlamatBumdesa} onChange={handleChange} className="form-input" disabled={hasSubmitted} /></label>
+                        <label className="form-group">Alamat email: <input type="text" name="Alamatemail" value={formData.Alamatemail} onChange={handleChange} className="form-input" disabled={hasSubmitted} /></label>
+                        <label className="form-group">Total Tenaga Kerja: <input type="text" name="TotalTenagaKerja" value={formData.TotalTenagaKerja} onChange={handleChange} className="form-input" disabled={hasSubmitted} /></label>
+                        <label className="form-group">No Telfon BUMDesa: <input type="text" name="TelfonBumdes" value={formData.TelfonBumdes} onChange={handleChange} className="form-input" disabled={hasSubmitted} /></label>
                     </div>
                 );
             case 'usaha':
@@ -295,7 +409,7 @@ function BumdesForm() {
                     <div className="form-section">
                         <h2 className="form-section-title">Usaha BUMDesa</h2>
                         <label className="form-group">Jenis Usaha:
-                            <select name="JenisUsaha" value={formData.JenisUsaha} onChange={handleChange} className="form-select">
+                            <select name="JenisUsaha" value={formData.JenisUsaha} onChange={handleChange} className="form-select" disabled={hasSubmitted}>
                                 <option value="">-</option>
                                 <option value="BudidayadanPertambangan">Budidaya dan Pertambangan</option>
                                 <option value="BudidayaPertanian">Budidaya Pertanian</option>
@@ -319,45 +433,45 @@ function BumdesForm() {
                                 <option value="BelumAdaKeterangan">Belum Ada Keterangan</option>
                             </select>
                         </label>
-                        <label className="form-group">Keterangan Jenis Usaha Utama: <input type="text" name="JenisUsahaUtama" value={formData.JenisUsahaUtama} onChange={handleChange} className="form-input" /></label>
-                        <label className="form-group">Jenis Usaha Lainnya: <input type="text" name="JenisUsahaLainnya" value={formData.JenisUsahaLainnya} onChange={handleChange} className="form-input" /></label>
-                        <label className="form-group">Omset 2023: <input type="text" name="Omset2023" value={formatRupiah(formData.Omset2023)} onChange={handleChange} className="form-input" /></label>
-                        <label className="form-group">Laba 2023: <input type="text" name="Laba2023" value={formatRupiah(formData.Laba2023)} onChange={handleChange} className="form-input" /></label>
-                        <label className="form-group">Omset 2024: <input type="text" name="Omset2024" value={formatRupiah(formData.Omset2024)} onChange={handleChange} className="form-input" /></label>
-                        <label className="form-group">Laba 2024: <input type="text" name="Laba2024" value={formatRupiah(formData.Laba2024)} onChange={handleChange} className="form-input" /></label>
+                        <label className="form-group">Keterangan Jenis Usaha Utama: <input type="text" name="JenisUsahaUtama" value={formData.JenisUsahaUtama} onChange={handleChange} className="form-input" disabled={hasSubmitted} /></label>
+                        <label className="form-group">Jenis Usaha Lainnya: <input type="text" name="JenisUsahaLainnya" value={formData.JenisUsahaLainnya} onChange={handleChange} className="form-input" disabled={hasSubmitted} /></label>
+                        <label className="form-group">Omset 2023: <input type="text" name="Omset2023" value={formatRupiah(formData.Omset2023)} onChange={handleChange} className="form-input" disabled={hasSubmitted} /></label>
+                        <label className="form-group">Laba 2023: <input type="text" name="Laba2023" value={formatRupiah(formData.Laba2023)} onChange={handleChange} className="form-input" disabled={hasSubmitted} /></label>
+                        <label className="form-group">Omset 2024: <input type="text" name="Omset2024" value={formatRupiah(formData.Omset2024)} onChange={handleChange} className="form-input" disabled={hasSubmitted} /></label>
+                        <label className="form-group">Laba 2024: <input type="text" name="Laba2024" value={formatRupiah(formData.Laba2024)} onChange={handleChange} className="form-input" disabled={hasSubmitted} /></label>
                     </div>
                 );
             case 'permodalan':
                 return (
                     <div className="form-section">
                         <h2 className="form-section-title">Permodalan dan Aset</h2>
-                        <label className="form-group">Penyertaan Modal 2019: <input type="text" name="PenyertaanModal2019" value={formatRupiah(formData.PenyertaanModal2019)} onChange={handleChange} className="form-input" /></label>
-                        <label className="form-group">Penyertaan Modal 2020: <input type="text" name="PenyertaanModal2020" value={formatRupiah(formData.PenyertaanModal2020)} onChange={handleChange} className="form-input" /></label>
-                        <label className="form-group">Penyertaan Modal 2021: <input type="text" name="PenyertaanModal2021" value={formatRupiah(formData.PenyertaanModal2021)} onChange={handleChange} className="form-input" /></label>
-                        <label className="form-group">Penyertaan Modal 2022: <input type="text" name="PenyertaanModal2022" value={formatRupiah(formData.PenyertaanModal2022)} onChange={handleChange} className="form-input" /></label>
-                        <label className="form-group">Penyertaan Modal 2023: <input type="text" name="PenyertaanModal2023" value={formatRupiah(formData.PenyertaanModal2023)} onChange={handleChange} className="form-input" /></label>
-                        <label className="form-group">Penyertaan Modal 2024: <input type="text" name="PenyertaanModal2024" value={formatRupiah(formData.PenyertaanModal2024)} onChange={handleChange} className="form-input" /></label>
-                        <label className="form-group">Modal dari Sumber Lain: <input type="text" name="SumberLain" value={formatRupiah(formData.SumberLain)} onChange={handleChange} className="form-input" /></label>
-                        <label className="form-group">Jenis Aset: <input type="text" name="JenisAset" value={formData.JenisAset} onChange={handleChange} className="form-input" /></label>
-                        <label className="form-group">Nilai Aset: <input type="text" name="NilaiAset" value={formatRupiah(formData.NilaiAset)} onChange={handleChange} className="form-input" /></label>
+                        <label className="form-group">Penyertaan Modal 2019: <input type="text" name="PenyertaanModal2019" value={formatRupiah(formData.PenyertaanModal2019)} onChange={handleChange} className="form-input" disabled={hasSubmitted} /></label>
+                        <label className="form-group">Penyertaan Modal 2020: <input type="text" name="PenyertaanModal2020" value={formatRupiah(formData.PenyertaanModal2020)} onChange={handleChange} className="form-input" disabled={hasSubmitted} /></label>
+                        <label className="form-group">Penyertaan Modal 2021: <input type="text" name="PenyertaanModal2021" value={formatRupiah(formData.PenyertaanModal2021)} onChange={handleChange} className="form-input" disabled={hasSubmitted} /></label>
+                        <label className="form-group">Penyertaan Modal 2022: <input type="text" name="PenyertaanModal2022" value={formatRupiah(formData.PenyertaanModal2022)} onChange={handleChange} className="form-input" disabled={hasSubmitted} /></label>
+                        <label className="form-group">Penyertaan Modal 2023: <input type="text" name="PenyertaanModal2023" value={formatRupiah(formData.PenyertaanModal2023)} onChange={handleChange} className="form-input" disabled={hasSubmitted} /></label>
+                        <label className="form-group">Penyertaan Modal 2024: <input type="text" name="PenyertaanModal2024" value={formatRupiah(formData.PenyertaanModal2024)} onChange={handleChange} className="form-input" disabled={hasSubmitted} /></label>
+                        <label className="form-group">Modal dari Sumber Lain: <input type="text" name="SumberLain" value={formatRupiah(formData.SumberLain)} onChange={handleChange} className="form-input" disabled={hasSubmitted} /></label>
+                        <label className="form-group">Jenis Aset: <input type="text" name="JenisAset" value={formData.JenisAset} onChange={handleChange} className="form-input" disabled={hasSubmitted} /></label>
+                        <label className="form-group">Nilai Aset: <input type="text" name="NilaiAset" value={formatRupiah(formData.NilaiAset)} onChange={handleChange} className="form-input" disabled={hasSubmitted} /></label>
                     </div>
                 );
             case 'kemitraan':
                 return (
                     <div className="form-section">
                         <h2 className="form-section-title">Kemitraan/Kerjasama</h2>
-                        <label className="form-group">Kemitraan/Kerjasama Pihak Ketiga: <input type="text" name="KerjasamaPihakKetiga" value={formData.KerjasamaPihakKetiga} onChange={handleChange} className="form-input" /></label>
-                        <label className="form-group">Tahun Mulai-Tahun Berakhir: <input type="text" name="TahunMulai-TahunBerakhir" value={formData['TahunMulai-TahunBerakhir']} onChange={handleChange} className="form-input" /></label>
+                        <label className="form-group">Kemitraan/Kerjasama Pihak Ketiga: <input type="text" name="KerjasamaPihakKetiga" value={formData.KerjasamaPihakKetiga} onChange={handleChange} className="form-input" disabled={hasSubmitted} /></label>
+                        <label className="form-group">Tahun Mulai-Tahun Berakhir: <input type="text" name="TahunMulai-TahunBerakhir" value={formData['TahunMulai-TahunBerakhir']} onChange={handleChange} className="form-input" disabled={hasSubmitted} /></label>
                     </div>
                 );
             case 'kontribusi':
                 return (
                     <div className="form-section">
                         <h2 className="form-section-title">Kontribusi PADES</h2>
-                        <label className="form-group">Kontribusi PADes 2021: <input type="text" name="KontribusiTerhadapPADes2021" value={formatRupiah(formData.KontribusiTerhadapPADes2021)} onChange={handleChange} className="form-input" /></label>
-                        <label className="form-group">Kontribusi PADes 2022: <input type="text" name="KontribusiTerhadapPADes2022" value={formatRupiah(formData.KontribusiTerhadapPADes2022)} onChange={handleChange} className="form-input" /></label>
-                        <label className="form-group">Kontribusi PADes 2023: <input type="text" name="KontribusiTerhadapPADes2023" value={formatRupiah(formData.KontribusiTerhadapPADes2023)} onChange={handleChange} className="form-input" /></label>
-                        <label className="form-group">Kontribusi PADes 2024: <input type="text" name="KontribusiTerhadapPADes2024" value={formatRupiah(formData.KontribusiTerhadapPADes2024)} onChange={handleChange} className="form-input" /></label>
+                        <label className="form-group">Kontribusi PADes 2021: <input type="text" name="KontribusiTerhadapPADes2021" value={formatRupiah(formData.KontribusiTerhadapPADes2021)} onChange={handleChange} className="form-input" disabled={hasSubmitted} /></label>
+                        <label className="form-group">Kontribusi PADes 2022: <input type="text" name="KontribusiTerhadapPADes2022" value={formatRupiah(formData.KontribusiTerhadapPADes2022)} onChange={handleChange} className="form-input" disabled={hasSubmitted} /></label>
+                        <label className="form-group">Kontribusi PADes 2023: <input type="text" name="KontribusiTerhadapPADes2023" value={formatRupiah(formData.KontribusiTerhadapPADes2023)} onChange={handleChange} className="form-input" disabled={hasSubmitted} /></label>
+                        <label className="form-group">Kontribusi PADes 2024: <input type="text" name="KontribusiTerhadapPADes2024" value={formatRupiah(formData.KontribusiTerhadapPADes2024)} onChange={handleChange} className="form-input" disabled={hasSubmitted} /></label>
                     </div>
                 );
             case 'peran':
@@ -365,7 +479,7 @@ function BumdesForm() {
                     <div className="form-section">
                         <h2 className="form-section-title">Peran BUMDesa pada Program Pemerintah</h2>
                         <label className="form-group">Peran Program Ketahanan Pangan 2024:
-                            <select name="Ketapang2024" value={formData.Ketapang2024} onChange={handleChange} className="form-select">
+                            <select name="Ketapang2024" value={formData.Ketapang2024} onChange={handleChange} className="form-select" disabled={hasSubmitted}>
                                 <option value="">-</option>
                                 <option value="Pengelola">Pengelola</option>
                                 <option value="Distribusi">Distribusi</option>
@@ -374,7 +488,7 @@ function BumdesForm() {
                             </select>
                         </label>
                         <label className="form-group">Peran Program Ketahanan Pangan 2025:
-                            <select name="Ketapang2025" value={formData.Ketapang2025} onChange={handleChange} className="form-select">
+                            <select name="Ketapang2025" value={formData.Ketapang2025} onChange={handleChange} className="form-select" disabled={hasSubmitted}>
                                 <option value="">-</option>
                                 <option value="Pengelola">Pengelola</option>
                                 <option value="Distribusi">Distribusi</option>
@@ -383,7 +497,7 @@ function BumdesForm() {
                             </select>
                         </label>
                         <label className="form-group">Peran Pada Desa Wisata:
-                            <select name="DesaWisata" value={formData.DesaWisata} onChange={handleChange} className="form-select">
+                            <select name="DesaWisata" value={formData.DesaWisata} onChange={handleChange} className="form-select" disabled={hasSubmitted}>
                                 <option value="">-</option>
                                 <option value="PengelolaUtama">Pengelola Utama</option>
                                 <option value="Pengelola Pendukung">Pengelola Pendukung</option>
@@ -395,32 +509,32 @@ function BumdesForm() {
                 return (
                     <div className="form-section">
                         <h2 className="form-section-title">Bantuan</h2>
-                        <label className="form-group">Bantuan Kementrian: <input type="text" name="BantuanKementrian" value={formData.BantuanKementrian} onChange={handleChange} className="form-input" /></label>
-                        <label className="form-group">Bantuan Lainnya: <input type="text" name="BantuanLaptopShopee" value={formData.BantuanLaptopShopee} onChange={handleChange} className="form-input" /></label>
+                        <label className="form-group">Bantuan Kementrian: <input type="text" name="BantuanKementrian" value={formData.BantuanKementrian} onChange={handleChange} className="form-input" disabled={hasSubmitted} /></label>
+                        <label className="form-group">Bantuan Lainnya: <input type="text" name="BantuanLaptopShopee" value={formData.BantuanLaptopShopee} onChange={handleChange} className="form-input" disabled={hasSubmitted} /></label>
                     </div>
                 );
             case 'laporan':
                 return (
                     <div className="form-section">
                         <h2 className="form-section-title">Laporan Pertanggung Jawaban</h2>
-                        <label className="form-group file-group">Laporan Keuangan 2021 (Maks: 5MB): <input type="file" name="LaporanKeuangan2021" onChange={handleFileChange} className="file-input" /></label>
-                        <label className="form-group file-group">Laporan Keuangan 2022 (Maks: 5MB): <input type="file" name="LaporanKeuangan2022" onChange={handleFileChange} className="file-input" /></label>
-                        <label className="form-group file-group">Laporan Keuangan 2023 (Maks: 5MB): <input type="file" name="LaporanKeuangan2023" onChange={handleFileChange} className="file-input" /></label>
-                        <label className="form-group file-group">Laporan Keuangan 2024 (Maks: 5MB): <input type="file" name="LaporanKeuangan2024" onChange={handleFileChange} className="file-input" /></label>
+                        <label className="form-group file-group">Laporan Keuangan 2021 (Maks: 5MB): <input type="file" name="LaporanKeuangan2021" onChange={handleFileChange} className="file-input" disabled={hasSubmitted} /></label>
+                        <label className="form-group file-group">Laporan Keuangan 2022 (Maks: 5MB): <input type="file" name="LaporanKeuangan2022" onChange={handleFileChange} className="file-input" disabled={hasSubmitted} /></label>
+                        <label className="form-group file-group">Laporan Keuangan 2023 (Maks: 5MB): <input type="file" name="LaporanKeuangan2023" onChange={handleFileChange} className="file-input" disabled={hasSubmitted} /></label>
+                        <label className="form-group file-group">Laporan Keuangan 2024 (Maks: 5MB): <input type="file" name="LaporanKeuangan2024" onChange={handleFileChange} className="file-input" disabled={hasSubmitted} /></label>
                     </div>
                 );
             case 'dokumen':
                 return (
                     <div className="form-section">
                         <h2 className="form-section-title">Dokumen Pendirian</h2>
-                        <label className="form-group">Nomor Perdes: <input type="text" name="NomorPerdes" value={formData.NomorPerdes} onChange={handleChange} className="form-input" /></label>
-                        <label className="form-group file-group">Perdes (Maks: 5MB): <input type="file" name="Perdes" onChange={handleFileChange} className="file-input" /></label>
-                        <label className="form-group file-group">Profil BUM Desa (Maks: 5MB): <input type="file" name="ProfilBUMDesa" onChange={handleFileChange} className="file-input" /></label>
-                        <label className="form-group file-group">Berita Acara (Maks: 5MB): <input type="file" name="BeritaAcara" onChange={handleFileChange} className="file-input" /></label>
-                        <label className="form-group file-group">Anggaran Dasar (Maks: 5MB): <input type="file" name="AnggaranDasar" onChange={handleFileChange} className="file-input" /></label>
-                        <label className="form-group file-group">Anggaran Rumah Tangga (Maks: 5MB): <input type="file" name="AnggaranRumahTangga" onChange={handleFileChange} className="file-input" /></label>
-                        <label className="form-group file-group">Program Kerja (Maks: 5MB): <input type="file" name="ProgramKerja" onChange={handleFileChange} className="file-input" /></label>
-                        <label className="form-group file-group">SK BUM Desa (Maks: 5MB): <input type="file" name="SK_BUM_Desa" onChange={handleFileChange} className="file-input" required /></label>
+                        <label className="form-group">Nomor Perdes: <input type="text" name="NomorPerdes" value={formData.NomorPerdes} onChange={handleChange} className="form-input" disabled={hasSubmitted} /></label>
+                        <label className="form-group file-group">Perdes (Maks: 5MB): <input type="file" name="Perdes" onChange={handleFileChange} className="file-input" disabled={hasSubmitted} /></label>
+                        <label className="form-group file-group">Profil BUM Desa (Maks: 5MB): <input type="file" name="ProfilBUMDesa" onChange={handleFileChange} className="file-input" disabled={hasSubmitted} /></label>
+                        <label className="form-group file-group">Berita Acara (Maks: 5MB): <input type="file" name="BeritaAcara" onChange={handleFileChange} className="file-input" disabled={hasSubmitted} /></label>
+                        <label className="form-group file-group">Anggaran Dasar (Maks: 5MB): <input type="file" name="AnggaranDasar" onChange={handleFileChange} className="file-input" disabled={hasSubmitted} /></label>
+                        <label className="form-group file-group">Anggaran Rumah Tangga (Maks: 5MB): <input type="file" name="AnggaranRumahTangga" onChange={handleFileChange} className="file-input" disabled={hasSubmitted} /></label>
+                        <label className="form-group file-group">Program Kerja (Maks: 5MB): <input type="file" name="ProgramKerja" onChange={handleFileChange} className="file-input" disabled={hasSubmitted} /></label>
+                        <label className="form-group file-group">SK BUM Desa (Maks: 5MB): <input type="file" name="SK_BUM_Desa" onChange={handleFileChange} className="file-input" disabled={hasSubmitted} /></label>
                     </div>
                 );
             default:
@@ -428,32 +542,49 @@ function BumdesForm() {
         }
     };
 
+
     return (
         <div className="form-page-container">
             <nav className="sidebar">
                 {formSections.map(section => (
-                    <button 
-                        key={section.id} 
-                        onClick={() => setActiveSection(section.id)} 
+                    <button
+                        key={section.id}
+                        onClick={() => setActiveSection(section.id)}
                         className={`sidebar-button ${activeSection === section.id ? 'active' : ''}`}
                     >
                         {section.title}
                     </button>
                 ))}
             </nav>
-            <form onSubmit={handleSubmit} className="form-content">
+            <form onSubmit={isLastSection ? handleSubmit : (e) => e.preventDefault()} className="form-content">
                 {renderSection()}
-                <button type="submit" disabled={loading} className="submit-button">
-                    {loading ? <FaSpinner className="spinner" /> : <FaPaperPlane />}
-                    {loading ? 'Mengirim...' : 'Next'}
-                </button>
-            </form>
+                
+                <Modal 
+                    show={modalShow} 
+                    onClose={() => setModalShow(false)} 
+                    title={message.type === 'error' ? 'Validasi Gagal' : (message.type === 'info' ? 'Informasi' : 'Berhasil')}
+                    message={message.text} 
+                    type={message.type} 
+                />
 
-            {message.text && (
-                <div className={`message-alert ${message.type}`}>
-                    <p>{message.text}</p>
+                <div className="form-navigation">
+                    {activeSection !== 'identitas' && (
+                        <button type="button" onClick={handlePrev} className="nav-button-prev-button" disabled={loading || hasSubmitted}>
+                            Kembali
+                        </button>
+                    )}
+                    {isLastSection ? (
+                        <button type="submit" disabled={loading || hasSubmitted} className="submit-button">
+                            {loading ? <FaSpinner className="spinner" /> : <FaPaperPlane />}
+                            {loading ? 'Mengirim...' : 'Submit'}
+                        </button>
+                    ) : (
+                        <button type="button" onClick={handleNext} disabled={loading || hasSubmitted} className="nav-button-next-button">
+                            Next
+                        </button>
+                    )}
                 </div>
-            )}
+            </form>
         </div>
     );
 }
