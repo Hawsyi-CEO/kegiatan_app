@@ -5,6 +5,46 @@ import 'chart.js/auto';
 import { FaSearch, FaFilter, FaRedoAlt } from 'react-icons/fa';
 import './bumdes.css';
 
+// Komponen Card Ringkasan yang Dapat Digunakan Ulang
+const SummaryCard = ({ title, data, itemsPerPage }) => {
+    const [currentPage, setCurrentPage] = useState(1);
+    const totalItems = Object.keys(data).length;
+    const totalPages = Math.ceil(totalItems / itemsPerPage);
+
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    const currentItems = Object.entries(data).slice(indexOfFirstItem, indexOfLastItem);
+
+    const paginate = (pageNumber) => setCurrentPage(pageNumber);
+
+    return (
+        <div className="summary-card-item">
+            <h4 className="summary-card-title">{title}</h4>
+            <div className="summary-content">
+                {currentItems.map(([key, value]) => (
+                    <div key={key} className="summary-item">
+                        <strong>{key}</strong>
+                        <span>{value}</span>
+                    </div>
+                ))}
+            </div>
+            {totalItems > itemsPerPage && (
+                <div className="pagination-summary">
+                    <button onClick={() => paginate(currentPage - 1)} disabled={currentPage === 1}>
+                        Prev
+                    </button>
+                    <span>
+                        Page {currentPage} of {totalPages}
+                    </span>
+                    <button onClick={() => paginate(currentPage + 1)} disabled={currentPage === totalPages}>
+                        Next
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+};
+
 function BumdesDashboard() {
     const [data, setData] = useState([]);
     const [filteredData, setFilteredData] = useState([]);
@@ -13,6 +53,11 @@ function BumdesDashboard() {
     const [filter, setFilter] = useState({ search: '', kecamatan: '' });
     const [kecamatanList, setKecamatanList] = useState([]);
     const [modal, setModal] = useState(null);
+    
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 10;
+    
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -39,6 +84,7 @@ function BumdesDashboard() {
             return matchesSearch && matchesKecamatan;
         });
         setFilteredData(temp);
+        setCurrentPage(1);
     }, [filter, data]);
 
     const getChartData = (key) => {
@@ -50,7 +96,7 @@ function BumdesDashboard() {
         
         const generateColors = (count) => {
             const colors = [];
-            const baseHue = 200; // Blue-green
+            const baseHue = 200;
             for (let i = 0; i < count; i++) {
                 const hue = (baseHue + (360 / count) * i) % 360;
                 colors.push(`hsl(${hue}, 70%, 60%)`);
@@ -75,6 +121,15 @@ function BumdesDashboard() {
         };
     };
 
+    const getSummaryData = (key) => {
+        const counts = filteredData.reduce((acc, item) => {
+            const value = item[key] || 'Tidak Diketahui';
+            acc[value] = (acc[value] || 0) + 1;
+            return acc;
+        }, {});
+        return counts;
+    };
+
     const showDetails = (bumdes) => {
         setModal(bumdes);
     };
@@ -83,12 +138,53 @@ function BumdesDashboard() {
         setModal(null);
     };
 
-    if (loading) {
-        return <div className="loading-message">Memuat data... 🔄</div>;
-    }
-    if (error) {
-        return <div className="error-message">{error}</div>;
-    }
+    const dataTableLastItem = currentPage * itemsPerPage;
+    const dataTableFirstItem = dataTableLastItem - itemsPerPage;
+    const currentItems = filteredData.slice(dataTableFirstItem, dataTableLastItem);
+    const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+
+    const paginate = (pageNumber) => setCurrentPage(pageNumber);
+
+    const renderPageNumbers = () => {
+        const pageNumbers = [];
+        const maxPagesToShow = 5;
+        const startPage = Math.max(1, currentPage - Math.floor(maxPagesToShow / 2));
+        const endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
+        
+        for (let i = startPage; i <= endPage; i++) {
+            pageNumbers.push(i);
+        }
+
+        const paginationItems = [];
+        if (pageNumbers[0] > 1) {
+            paginationItems.push(<button key={1} onClick={() => paginate(1)} className={1 === currentPage ? 'active' : ''}>1</button>);
+            if (pageNumbers[0] > 2) paginationItems.push(<span key="elipsis-start" className="pagination-ellipsis">...</span>);
+        }
+        pageNumbers.forEach(number => {
+            paginationItems.push(
+                <button key={number} onClick={() => paginate(number)} className={number === currentPage ? 'active' : ''}>
+                    {number}
+                </button>
+            );
+        });
+        if (pageNumbers[pageNumbers.length - 1] < totalPages) {
+            if (pageNumbers[pageNumbers.length - 1] < totalPages - 1) paginationItems.push(<span key="elipsis-end" className="pagination-ellipsis">...</span>);
+            paginationItems.push(<button key={totalPages} onClick={() => paginate(totalPages)} className={totalPages === currentPage ? 'active' : ''}>{totalPages}</button>);
+        }
+        return paginationItems;
+    };
+
+    const handleReset = () => {
+        setFilter({ search: '', kecamatan: '' });
+        setCurrentPage(1);
+    };
+
+    if (loading) return <div className="loading-message">Memuat data... 🔄</div>;
+    if (error) return <div className="error-message">{error}</div>;
+
+    const statusSummary = getSummaryData('status');
+    const jenisUsahaSummary = getSummaryData('JenisUsaha');
+    const badanHukumSummary = getSummaryData('badanhukum');
 
     return (
         <div className="dashboard-container">
@@ -108,6 +204,12 @@ function BumdesDashboard() {
                     <Pie data={getChartData('badanhukum')} />
                 </div>
             </div>
+
+            <div className="summary-grid">
+                <SummaryCard title="Ringkasan Status BUMDes" data={statusSummary} itemsPerPage={5} />
+                <SummaryCard title="Ringkasan Jenis Usaha" data={jenisUsahaSummary} itemsPerPage={5} />
+                <SummaryCard title="Ringkasan Badan Hukum" data={badanHukumSummary} itemsPerPage={5} />
+            </div>
             
             <div className="data-table-card">
                 <div className="filter-container">
@@ -121,25 +223,49 @@ function BumdesDashboard() {
                             className="filter-input"
                         />
                     </div>
-                    <div className="input-with-icon">
-                        <FaFilter className="icon" />
-                        <select
-                            value={filter.kecamatan}
-                            onChange={e => setFilter({ ...filter, kecamatan: e.target.value })}
-                            className="filter-select"
+                    
+                    <div className="dropdown-container">
+                        <div 
+                            className="dropdown-toggle"
+                            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                         >
-                            <option value="">Semua Kecamatan</option>
-                            {kecamatanList.map(kec => <option key={kec} value={kec}>{kec}</option>)}
-                        </select>
+                            <FaFilter className="icon" />
+                            <span>{filter.kecamatan || 'Semua Kecamatan'}</span>
+                        </div>
+                        {isDropdownOpen && (
+                            <div className="dropdown-menu">
+                                <div
+                                    className="dropdown-item"
+                                    onClick={() => {
+                                        setFilter({ ...filter, kecamatan: '' });
+                                        setIsDropdownOpen(false);
+                                    }}
+                                >
+                                    Semua Kecamatan
+                                </div>
+                                {kecamatanList.map(kec => (
+                                    <div
+                                        key={kec}
+                                        className="dropdown-item"
+                                        onClick={() => {
+                                            setFilter({ ...filter, kecamatan: kec });
+                                            setIsDropdownOpen(false);
+                                        }}
+                                    >
+                                        {kec}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
-                    <button onClick={() => setFilter({ search: '', kecamatan: '' })} className="reset-button">
+                    <button onClick={handleReset} className="reset-button">
                         <FaRedoAlt className="icon" /> Reset
                     </button>
                 </div>
                 
                 <div className="bumdes-card-grid">
-                    {filteredData.length > 0 ? (
-                        filteredData.map(bumdes => (
+                    {currentItems.length > 0 ? (
+                        currentItems.map(bumdes => (
                             <div className="bumdes-card-item" key={bumdes.id} onClick={() => showDetails(bumdes)}>
                                 <h3 className="bumdes-card-title">{bumdes.namabumdesa || 'Nama Tidak Tersedia'}</h3>
                                 <p><strong>Desa:</strong> {bumdes.desa || '-'}</p>
@@ -151,8 +277,29 @@ function BumdesDashboard() {
                         <div className="no-data-message">Tidak ada data yang ditemukan.</div>
                     )}
                 </div>
-            </div>
 
+                {filteredData.length > itemsPerPage && (
+                    <div className="pagination-wrapper">
+                        <div className="pagination">
+                            <button
+                                onClick={() => paginate(currentPage - 1)}
+                                disabled={currentPage === 1}
+                                className="pagination-nav-button"
+                            >
+                                &laquo; Sebelumnya
+                            </button>
+                            {renderPageNumbers()}
+                            <button
+                                onClick={() => paginate(currentPage + 1)}
+                                disabled={currentPage === totalPages}
+                                className="pagination-nav-button"
+                            >
+                                Selanjutnya &raquo;
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </div>
             {modal && (
                 <div className="overlay" onClick={closeDetails}>
                     <div className="modal-content" onClick={e => e.stopPropagation()}>
