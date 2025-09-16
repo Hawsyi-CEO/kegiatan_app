@@ -8,19 +8,24 @@ import './bumdes.css';
 
 function BumdesApp() {
     const [view, setView] = useState('form');
-    const [bumdesId, setBumdesId] = useState(null);
+    const [bumdesData, setBumdesData] = useState(null); // Ubah dari bumdesId menjadi bumdesData
 
     const handleNavClick = (newView) => {
+        // Jika navigasi ke halaman lain saat sudah login, reset data
+        if (view !== 'login' && view !== 'edit') {
+            setBumdesData(null);
+        }
         setView(newView);
     };
 
-    const handleLoginSuccess = (id) => {
-        setBumdesId(id);
+    // Terima data lengkap setelah login berhasil
+    const handleLoginSuccess = (data) => {
+        setBumdesData(data);
         setView('edit');
     };
 
     const handleLogout = () => {
-        setBumdesId(null);
+        setBumdesData(null);
         setView('login');
     };
 
@@ -33,7 +38,15 @@ function BumdesApp() {
             case 'login':
                 return <Login onLoginSuccess={handleLoginSuccess} />;
             case 'edit':
-                return <BumdesEditDashboard bumdesId={bumdesId} onLogout={handleLogout} />;
+                // Teruskan data lengkap ke BumdesEditDashboard
+                if (!bumdesData) {
+                    return (
+                        <div className="loading-message">
+                            Data BUMDes tidak ditemukan. Silakan login kembali.
+                        </div>
+                    );
+                }
+                return <BumdesEditDashboard initialData={bumdesData} onLogout={handleLogout} />;
             default:
                 return <BumdesForm />;
         }

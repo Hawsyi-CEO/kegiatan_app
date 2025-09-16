@@ -67,13 +67,17 @@ function BumdesForm() {
     useEffect(() => {
         const fetchIdentitasData = async () => {
             try {
+                // Pastikan URL API sudah benar
                 const response = await axios.get('/api/identitas-bumdes');
-                setAllIdentitasData(response.data);
+                const data = response.data;
+                setAllIdentitasData(data);
                 
-                const uniqueKec = [...new Set(response.data.map(item => item.kecamatan))].sort();
+                // Ambil semua kecamatan unik dari data yang diterima
+                const uniqueKec = [...new Set(data.map(item => item.kecamatan))].sort();
                 setUniqueKecamatan(uniqueKec);
             } catch (error) {
                 console.error('Gagal mengambil data identitas:', error);
+                setMessage({ text: 'Gagal memuat data kecamatan dan desa. Coba refresh halaman.', type: 'error' });
             }
         };
         fetchIdentitasData();
@@ -81,6 +85,7 @@ function BumdesForm() {
 
     useEffect(() => {
         if (formData.kecamatan) {
+            // Filter desa berdasarkan kecamatan yang dipilih
             const desaList = allIdentitasData.filter(item => item.kecamatan === formData.kecamatan);
             setDesaByKecamatan(desaList.sort((a, b) => a.desa.localeCompare(b.desa)));
         } else {
@@ -102,8 +107,8 @@ function BumdesForm() {
         setFormData(prev => ({
             ...prev,
             kecamatan: selectedKecamatan,
-            desa: '', 
-            kode_desa: '',
+            desa: '', // Reset desa ketika kecamatan berubah
+            kode_desa: '', // Reset kode_desa ketika kecamatan berubah
         }));
     };
 
@@ -120,11 +125,10 @@ function BumdesForm() {
             }));
         } else {
              setFormData(prev => ({
-                ...prev,
-                kode_desa: '',
-                desa: '',
-                kecamatan: '',
-            }));
+                 ...prev,
+                 kode_desa: '',
+                 desa: '',
+             }));
         }
     };
 
@@ -261,16 +265,16 @@ function BumdesForm() {
                         <h2 className="form-section-title">Profil Pengurus</h2>
                         {Object.keys(initialFormData).filter(key => key.startsWith('Nama') || key.startsWith('JenisKelamin') || key.startsWith('HP')).map(key => (
                                <label key={key} className="form-group">
-                                   {key.replace(/([A-Z])/g, ' $1').trim().replace(/_/g, ' ')}:
-                                   {key.startsWith('JenisKelamin') ? (
-                                       <select name={key} value={formData[key]} onChange={handleChange} className="form-select">
-                                           <option value="">-</option>
-                                           <option value="laki-laki">Laki-Laki</option>
-                                           <option value="perempuan">Perempuan</option>
-                                       </select>
-                                   ) : (
-                                       <input type="text" name={key} value={formData[key] || ''} onChange={handleChange} className="form-input" />
-                                   )}
+                                    {key.replace(/([A-Z])/g, ' $1').trim().replace(/_/g, ' ')}:
+                                    {key.startsWith('JenisKelamin') ? (
+                                        <select name={key} value={formData[key]} onChange={handleChange} className="form-select">
+                                            <option value="">-</option>
+                                            <option value="laki-laki">Laki-Laki</option>
+                                            <option value="perempuan">Perempuan</option>
+                                        </select>
+                                    ) : (
+                                        <input type="text" name={key} value={formData[key] || ''} onChange={handleChange} className="form-input" />
+                                    )}
                                </label>
                         ))}
                     </div>

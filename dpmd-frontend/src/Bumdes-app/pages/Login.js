@@ -1,67 +1,51 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { FaUserShield, FaSignInAlt, FaExclamationCircle, FaSpinner } from 'react-icons/fa';
-import './bumdes.css';
+import { FaSignInAlt, FaSpinner } from 'react-icons/fa';
+import './bumdes.css'; // Perubahan di sini
 
 function Login({ onLoginSuccess }) {
     const [desa, setDesa] = useState('');
-    const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setError('');
         setLoading(true);
+        setError('');
+
         try {
-            const response = await axios.get(`/api/bumdes/search?q=${desa}`);
-            if (response.data.length > 0) {
-                const bumdes = response.data.find(b => b.desa?.toLowerCase() === desa.toLowerCase());
-                if (bumdes) {
-                    onLoginSuccess(bumdes.id);
-                } else {
-                    setError('Nama desa tidak ditemukan.');
-                }
-            } else {
-                setError('Nama desa tidak ditemukan.');
-            }
+            const response = await axios.post('/api/login/desa', { desa });
+            onLoginSuccess(response.data);
         } catch (err) {
-            setError('Terjadi kesalahan saat login.');
+            console.error('Login error:', err);
+            setError(err.response?.data?.message || 'Gagal masuk. Nama desa tidak ditemukan atau terjadi kesalahan server.');
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <div className="login-container-wrapper">
-            <div className="login-card">
-                <div className="login-header">
-                    <FaUserShield className="login-icon" />
-                    <h2 className="login-title">Masuk</h2>
-                    <p className="login-subtitle">Akses data BUMDes Anda.</p>
+        <div className="login-container">
+            <h2 className="login-title">Masuk untuk Mengedit Data</h2>
+            <form onSubmit={handleSubmit} className="login-form">
+                <div className="form-group">
+                    <label className="form-label">Nama Desa:</label>
+                    <input
+                        type="text"
+                        name="desa"
+                        value={desa}
+                        onChange={(e) => setDesa(e.target.value)}
+                        placeholder="Masukkan nama desa"
+                        required
+                        className="form-input"
+                    />
                 </div>
-                {error && (
-                    <div className="login-error-message">
-                        <FaExclamationCircle className="error-icon" /> {error}
-                    </div>
-                )}
-                <form onSubmit={handleSubmit} className="login-form">
-                    <label className="form-group">
-                        Nama Desa
-                        <input
-                            type="text"
-                            value={desa}
-                            onChange={e => setDesa(e.target.value)}
-                            required
-                            className="form-input"
-                            placeholder="Contoh: Desa A"
-                        />
-                    </label>
-                    <button type="submit" className="login-button" disabled={loading}>
-                        {loading ? <FaSpinner className="spinner" /> : <FaSignInAlt />}
-                        {loading ? 'Memuat...' : 'Masuk'}
-                    </button>
-                </form>
-            </div>
+                {error && <p className="error-message-login">{error}</p>}
+                <button type="submit" disabled={loading} className="login-button">
+                    {loading ? <FaSpinner className="spinner" /> : <FaSignInAlt />}
+                    {loading ? 'Memuat...' : 'Masuk'}
+                </button>
+            </form>
         </div>
     );
 }
