@@ -1,32 +1,52 @@
-import React, { useState } from 'react';
+// BumdesApp.js
+import React, { useState, useEffect } from 'react';
+import { FaPlus, FaChartBar, FaUserEdit, FaSignOutAlt } from 'react-icons/fa';
+import axios from 'axios';
 import BumdesForm from './BumdesForm';
 import BumdesDashboard from './BumdesDashboard';
 import Login from './Login';
 import BumdesEditDashboard from './BumdesEditDashboard';
-import { FaPlus, FaChartBar, FaUserEdit, FaSignOutAlt } from 'react-icons/fa';
 import './bumdes.css';
 
 function BumdesApp() {
-    const [view, setView] = useState('form');
-    const [bumdesData, setBumdesData] = useState(null); // Ubah dari bumdesId menjadi bumdesData
+    // State untuk mengelola tampilan dan data sesi
+    const [view, setView] = useState('statistik'); // Tampilan default
+    const [loggedIn, setLoggedIn] = useState(false);
+    const [bumdesData, setBumdesData] = useState(null);
 
-    const handleNavClick = (newView) => {
-        // Jika navigasi ke halaman lain saat sudah login, reset data
-        if (view !== 'login' && view !== 'edit') {
-            setBumdesData(null);
+    // Cek sesi login di localStorage saat komponen pertama kali dimuat
+    useEffect(() => {
+        const storedBumdesData = localStorage.getItem('bumdesData');
+        if (storedBumdesData) {
+            const data = JSON.parse(storedBumdesData);
+            setLoggedIn(true);
+            setBumdesData(data);
+            // Set view ke 'edit' jika data sudah ada
+            setView('edit'); 
         }
-        setView(newView);
-    };
+    }, []);
 
-    // Terima data lengkap setelah login berhasil
+    // Fungsi untuk menangani login berhasil
     const handleLoginSuccess = (data) => {
+        // Simpan data di localStorage untuk mempertahankan sesi
+        localStorage.setItem('bumdesData', JSON.stringify(data));
+        setLoggedIn(true);
         setBumdesData(data);
         setView('edit');
     };
 
+    // Fungsi untuk menangani logout
     const handleLogout = () => {
+        // Hapus data dari localStorage
+        localStorage.removeItem('bumdesData');
+        setLoggedIn(false);
         setBumdesData(null);
         setView('login');
+    };
+
+    // Fungsi untuk berpindah navigasi
+    const handleNavClick = (newView) => {
+        setView(newView);
     };
 
     const renderContent = () => {
@@ -36,19 +56,17 @@ function BumdesApp() {
             case 'statistik':
                 return <BumdesDashboard />;
             case 'login':
+                // Teruskan fungsi handleLoginSuccess ke komponen Login
                 return <Login onLoginSuccess={handleLoginSuccess} />;
             case 'edit':
-                // Teruskan data lengkap ke BumdesEditDashboard
-                if (!bumdesData) {
-                    return (
-                        <div className="loading-message">
-                            Data BUMDes tidak ditemukan. Silakan login kembali.
-                        </div>
-                    );
+                if (!loggedIn || !bumdesData) {
+                    // Jika data tidak ada, arahkan kembali ke login
+                    return <Login onLoginSuccess={handleLoginSuccess} />;
                 }
+                // Teruskan data dan fungsi logout ke BumdesEditDashboard
                 return <BumdesEditDashboard initialData={bumdesData} onLogout={handleLogout} />;
             default:
-                return <BumdesForm />;
+                return <BumdesDashboard />;
         }
     };
 
@@ -62,7 +80,7 @@ function BumdesApp() {
                             <p className="header-subtitle">Aplikasi Pengelolaan Data BUMDes</p>
                         </div>
                     </div>
-                    {view === 'edit' && (
+                    {loggedIn && (
                         <button onClick={handleLogout} className="logout-button">
                             <FaSignOutAlt /> Keluar
                         </button>
@@ -83,10 +101,10 @@ function BumdesApp() {
                         <FaChartBar className="nav-icon" /> Statistik
                     </button>
                     <button
-                        onClick={() => handleNavClick('login')}
+                        onClick={() => handleNavClick(loggedIn ? 'edit' : 'login')}
                         className={`nav-button ${view === 'login' || view === 'edit' ? 'active' : ''}`}
                     >
-                        <FaUserEdit className="nav-icon" /> Login & Edit
+                        <FaUserEdit className="nav-icon" /> {loggedIn ? 'Edit Data' : 'Login & Edit'}
                     </button>
                 </div>
 

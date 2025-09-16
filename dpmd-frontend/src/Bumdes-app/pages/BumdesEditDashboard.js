@@ -95,6 +95,8 @@ function BumdesEditDashboard({ initialData, onLogout }) {
             showMessagePopup(response.data.message, 'success');
             setFormData(response.data.data);
             setLoading(false);
+            // Perbarui data di localStorage setelah update berhasil
+            localStorage.setItem('bumdesData', JSON.stringify(response.data.data));
         } catch (error) {
             console.error("Gagal mengupdate data:", error.response?.data?.errors || error.message);
             showMessagePopup('Gagal mengupdate data: ' + (error.response?.data?.message || error.message), 'error');
@@ -361,9 +363,8 @@ function BumdesEditDashboard({ initialData, onLogout }) {
             <nav className="sidebar">
                 <div className="edit-header">
                     <h2 className="dashboard-title">Edit Data</h2>
-                    <button onClick={onLogout} className="logout-button">
-                        <FaTimes /> Batalkan & Keluar
-                    </button>
+                    {/* Menggunakan prop onLogout yang dikirim dari BumdesApp */}
+                  
                 </div>
                 {formSections.map(section => (
                     <button 

@@ -1,51 +1,89 @@
+// Login.js
 import React, { useState } from 'react';
 import axios from 'axios';
-import { FaSignInAlt, FaSpinner } from 'react-icons/fa';
-import './bumdes.css'; // Perubahan di sini
+import { FaSignInAlt, FaSpinner, FaCheckCircle, FaExclamationCircle } from 'react-icons/fa';
+import './bumdes.css';
 
 function Login({ onLoginSuccess }) {
     const [desa, setDesa] = useState('');
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
+    const [showPopup, setShowPopup] = useState(false);
+    const [popupMessage, setPopupMessage] = useState({ text: '', type: '' });
+
+    const showMessagePopup = (text, type) => {
+        setPopupMessage({ text, type });
+        setShowPopup(true);
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
-        setError('');
+        setShowPopup(false);
 
         try {
             const response = await axios.post('/api/login/desa', { desa });
+            // Panggil fungsi onLoginSuccess dari parent
             onLoginSuccess(response.data);
+            showMessagePopup("Login Berhasil!", 'success');
         } catch (err) {
             console.error('Login error:', err);
-            setError(err.response?.data?.message || 'Gagal masuk. Nama desa tidak ditemukan atau terjadi kesalahan server.');
+            const errorMessage = err.response?.data?.message || 'Gagal masuk. Nama desa tidak ditemukan atau terjadi kesalahan server.';
+            showMessagePopup(errorMessage, 'error');
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <div className="login-container">
-            <h2 className="login-title">Masuk untuk Mengedit Data</h2>
-            <form onSubmit={handleSubmit} className="login-form">
-                <div className="form-group">
-                    <label className="form-label">Nama Desa:</label>
-                    <input
-                        type="text"
-                        name="desa"
-                        value={desa}
-                        onChange={(e) => setDesa(e.target.value)}
-                        placeholder="Masukkan nama desa"
-                        required
-                        className="form-input"
-                    />
+        <div className="login-container-wrapper">
+            <div className="login-card">
+                <div className="login-header">
+                    <div className="login-icon"><FaSignInAlt /></div>
+                    <h1 className="login-title">Login BUMDesa</h1>
+                    <p className="login-subtitle">Masuk untuk mengelola data BUMDesa Anda</p>
                 </div>
-                {error && <p className="error-message-login">{error}</p>}
-                <button type="submit" disabled={loading} className="login-button">
-                    {loading ? <FaSpinner className="spinner" /> : <FaSignInAlt />}
-                    {loading ? 'Memuat...' : 'Masuk'}
-                </button>
-            </form>
+                <form onSubmit={handleSubmit} className="login-form">
+                    <div className="form-group">
+                        <label className="input-label">Nama Desa:</label>
+                        <div className="input-with-icon">
+                            <input 
+                                type="text" 
+                                className="form-input" 
+                                value={desa} 
+                                onChange={(e) => setDesa(e.target.value)} 
+                                placeholder="Masukkan nama desa"
+                                required 
+                            />
+                        </div>
+                    </div>
+                    <button type="submit" className="login-button" disabled={loading}>
+                        {loading ? (
+                            <>
+                                <FaSpinner className="spinner" />
+                                <span>Memuat...</span>
+                            </>
+                        ) : (
+                            <>
+                                <FaSignInAlt />
+                                <span>Masuk</span>
+                            </>
+                        )}
+                    </button>
+                </form>
+            </div>
+            {showPopup && (
+                <div className="popup-overlay">
+                    <div className={`popup-content ${popupMessage.type}`}>
+                        <div className="popup-icon">
+                            {popupMessage.type === 'success' ? <FaCheckCircle /> : <FaExclamationCircle />}
+                        </div>
+                        <p className="popup-text">{popupMessage.text}</p>
+                        <button onClick={() => setShowPopup(false)} className="close-popup-btn">
+                            Tutup
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

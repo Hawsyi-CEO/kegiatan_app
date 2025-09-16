@@ -2,8 +2,8 @@
 
 /* --- Color & Font Variables --- */
 :root {
-    --primary-color: #020223; /* Green */
-    --secondary-color: #03062b; /* Blue */
+    --primary-color: #020223; /* Dark Blue */
+    --secondary-color: #03062b; /* Slightly lighter Dark Blue */
     --accent-color: #FFC107; /* Yellow */
     --background-light: #F8F9FA;
     --background-card: #FFFFFF;
@@ -65,11 +65,12 @@ body {
     margin-top: 5px;
 }
 
-/* --- Navigation --- */
+/* --- Navigation & Buttons --- */
 .nav-buttons-container {
     display: flex;
     gap: 15px;
-    
+    flex-wrap: wrap;
+    margin-bottom: 20px;
 }
 
 .nav-button {
@@ -87,21 +88,53 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
+    text-decoration: none;
+    min-width: 150px;
 }
 
 .nav-button:hover {
     transform: translateY(-3px);
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+    color: var(--secondary-color);
 }
 
 .nav-button.active {
     background: linear-gradient(45deg, var(--secondary-color), #00061d);
     color: white;
     box-shadow: 0 5px 20px rgba(33, 150, 243, 0.4);
+    pointer-events: none;
+}
+
+.nav-button.active:hover {
+    transform: none;
+    box-shadow: 0 5px 20px rgba(33, 150, 243, 0.4);
 }
 
 .nav-icon {
     margin-right: 10px;
+    font-size: 1.2em;
+}
+
+.logout-button {
+    background-color: red;
+    border: 2px solid var(--error-color);
+    color: white;
+    padding: 10px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+    font-weight: bold;
+}
+
+.logout-button:hover {
+    background-color: var(--error-color);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 .content-card {
