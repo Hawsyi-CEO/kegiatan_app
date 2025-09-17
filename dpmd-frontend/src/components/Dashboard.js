@@ -102,17 +102,18 @@ const Dashboard = ({ onFilterClick }) => {
     };
   }, [weeklySchedule, selectedDayIndex]);
 
+  // FUNGSI INI YANG DIUBAH
   const renderPersonilList = (personilString) => {
     if (!personilString) return <p className="text-gray-600 text-sm">Tidak ada personel.</p>;
     
     const personilNames = personilString.split(',').map(name => name.trim()).filter(Boolean);
 
     return (
-      <ul className="list-disc list-inside">
+      <ol className="list-inside personil-list">
         {personilNames.map((person, index) => (
           <li key={index}>{person}</li>
         ))}
-      </ul>
+      </ol>
     );
   };
 
@@ -181,7 +182,7 @@ const Dashboard = ({ onFilterClick }) => {
           </div>
         </div>
 
-        <div className={`activity-card-container ${isDayTransitioning ? 'fade-out-down' : 'fade-in-up'}`}>
+        <div className="activity-card-container">
           {selectedDay ? (
             <>
               <h4 className="activity-card-header">
@@ -193,8 +194,7 @@ const Dashboard = ({ onFilterClick }) => {
                   selectedDay.kegiatan.map((keg, index) => (
                     <div 
                       key={index} 
-                      className={`activity-card-new ${index === activeActivityIndex && !isActivityTransitioning ? 'fade-in-up' : 'fade-out-down-hidden'}`}
-                      style={{ transitionDuration: `${activityTransitionDuration}ms` }}
+                      className={`activity-card-new ${index === activeActivityIndex ? 'visible' : 'hidden'}`}
                     >
                       <h5>
                         <i className="fas fa-clipboard-list"></i>{keg.nama_kegiatan}
@@ -227,11 +227,7 @@ const Dashboard = ({ onFilterClick }) => {
                       key={dotIndex} 
                       className={`dot ${activeActivityIndex === dotIndex ? 'active' : ''}`}
                       onClick={() => {
-                        setIsActivityTransitioning(true);
-                        setTimeout(() => {
-                          setActiveActivityIndex(dotIndex);
-                          setIsActivityTransitioning(false);
-                        }, activityTransitionDuration);
+                        setActiveActivityIndex(dotIndex);
                         clearInterval(activityCarouselIntervalRef.current);
                         clearInterval(dayTransitionIntervalRef.current);
                       }}

@@ -175,11 +175,11 @@ const KegiatanList = ({ initialDateFilter, initialBidangFilter }) => {
                       {keg.details.map((detail, dIndex) => (
                         <div key={dIndex}>
                           <strong>{detail.bidang.nama_bidang}:</strong>
-                          <ul>
+                          <ol className="personil-ordered-list">
                             {detail.personil && detail.personil.split(',').map((p, pIndex) => (
                               <li key={pIndex}>{p.trim()}</li>
                             ))}
-                          </ul>
+                          </ol>
                         </div>
                       ))}
                     </td>
