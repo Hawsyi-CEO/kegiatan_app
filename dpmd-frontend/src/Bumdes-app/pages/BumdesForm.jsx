@@ -64,7 +64,6 @@ const initialFormData = {
     PenyertaanModal2023: '', PenyertaanModal2024: '', SumberLain: '', JenisAset: '', NilaiAset: '', KerjasamaPihakKetiga: '',
     'TahunMulai-TahunBerakhir': '', KontribusiTerhadapPADes2021: '', KontribusiTerhadapPADes2022: '', KontribusiTerhadapPADes2023: '',
     KontribusiTerhadapPADes2024: '', Ketapang2024: '', Ketapang2025: '', BantuanKementrian: '', BantuanLaptopShopee: '',
-    NomorPerdes: '', DesaWisata: '',
     LaporanKeuangan2021: null, LaporanKeuangan2022: null, LaporanKeuangan2023: null, LaporanKeuangan2024: null,
     Perdes: null, ProfilBUMDesa: null, BeritaAcara: null, AnggaranDasar: null, AnggaranRumahTangga: null,
     ProgramKerja: null, SK_BUM_Desa: null,
@@ -96,9 +95,11 @@ function BumdesForm() {
         const fetchIdentitasData = async () => {
             try {
                 const response = await axios.get('/api/identitas-bumdes');
-                const data = response.data;
-                setAllIdentitasData(data);
-                const uniqueKec = [...new Set(data.map(item => item.kecamatan))].sort();
+                // Perbaikan: Akses properti `data` dari respons jika ada, jika tidak, gunakan array kosong
+                const apiData = response.data.data || [];
+                
+                setAllIdentitasData(apiData);
+                const uniqueKec = [...new Set(apiData.map(item => item.kecamatan))].sort();
                 setUniqueKecamatan(uniqueKec);
             } catch (error) {
                 console.error('Gagal mengambil data identitas:', error);
@@ -200,8 +201,6 @@ function BumdesForm() {
         
         const currentIndex = formSections.findIndex(section => section.id === activeSection);
         if (currentIndex < formSections.length - 1) {
-            // Gabungkan data dari form saat ini dengan data di localStorage (jika ada)
-            // Simpan data non-file ke localStorage
             const nonFileFormData = Object.fromEntries(
                 Object.entries(formData).filter(([key, value]) => !(value instanceof File))
             );
@@ -226,10 +225,8 @@ function BumdesForm() {
         setMessage({ text: '', type: '' });
         setModalShow(false);
 
-        // Ambil data non-file dari localStorage
         const savedDataFromLocalStorage = JSON.parse(localStorage.getItem('bumdesFormData')) || {};
 
-        // Gabungkan data non-file dari localStorage dengan data file yang ada di state saat ini
         const finalData = { ...savedDataFromLocalStorage };
         for (const key in formData) {
             if (formData[key] instanceof File) {
@@ -237,7 +234,6 @@ function BumdesForm() {
             }
         }
 
-        // Siapkan objek FormData untuk dikirim
         const dataToSend = new FormData();
         for (const key in finalData) {
             if (finalData[key] !== null && finalData[key] !== undefined) {
@@ -283,55 +279,31 @@ function BumdesForm() {
                 return (
                     <div className="form-section">
                         <h2 className="form-section-title">Identitas BUMDes</h2>
-
                         <div className="form-group">
                             <label className="form-label">Nama BUMDesa:</label>
                             <input type="text" name="namabumdesa" value={formData.namabumdesa} onChange={handleChange} className="form-input" disabled={hasSubmitted} />
                         </div>
-
                         <div className="form-group">
                             <label className="form-label">Kecamatan:</label>
-                            <select
-                                name="kecamatan"
-                                value={formData.kecamatan}
-                                onChange={handleKecamatanChange}
-                                className="form-select"
-                                disabled={hasSubmitted}
-                            >
+                            <select name="kecamatan" value={formData.kecamatan} onChange={handleKecamatanChange} className="form-select" disabled={hasSubmitted}>
                                 <option value="">Pilih Kecamatan</option>
                                 {uniqueKecamatan.map(kec => (
                                     <option key={kec} value={kec}>{kec}</option>
                                 ))}
                             </select>
                         </div>
-
                         <div className="form-group">
                             <label className="form-label">Desa:</label>
-                            <select
-                                name="desa"
-                                value={formData.kode_desa}
-                                onChange={handleDesaChange}
-                                className="form-select"
-                                disabled={!formData.kecamatan || hasSubmitted}
-                            >
+                            <select name="desa" value={formData.kode_desa} onChange={handleDesaChange} className="form-select" disabled={!formData.kecamatan || hasSubmitted}>
                                 <option value="">Pilih Desa</option>
                                 {desaByKecamatan.map(desa => (
                                     <option key={desa.kode_desa} value={desa.kode_desa}>{desa.desa}</option>
                                 ))}
                             </select>
                         </div>
-
                         <div className="form-group">
                             <label className="form-label">Kode Desa:</label>
-                            <input
-                                type="text"
-                                name="kode_desa"
-                                value={formData.kode_desa}
-                                readOnly
-                                className="form-input"
-                                placeholder="Kode Desa akan terisi otomatis"
-                                disabled={hasSubmitted}
-                            />
+                            <input type="text" name="kode_desa" value={formData.kode_desa} readOnly className="form-input" placeholder="Kode Desa akan terisi otomatis" disabled={hasSubmitted} />
                         </div>
                     </div>
                 );
@@ -530,11 +502,11 @@ function BumdesForm() {
                         <label className="form-group">Nomor Perdes: <input type="text" name="NomorPerdes" value={formData.NomorPerdes} onChange={handleChange} className="form-input" disabled={hasSubmitted} /></label>
                         <label className="form-group file-group">Perdes (Maks: 5MB): <input type="file" name="Perdes" onChange={handleFileChange} className="file-input" disabled={hasSubmitted} /></label>
                         <label className="form-group file-group">Profil BUM Desa (Maks: 5MB): <input type="file" name="ProfilBUMDesa" onChange={handleFileChange} className="file-input" disabled={hasSubmitted} /></label>
-                        <label className="form-group file-group">Berita Acara (Maks: 5MB): <input type="file" name="BeritaAcara" onChange={handleFileChange} className="file-input" disabled={hasSubmitted} /></label>
-                        <label className="form-group file-group">Anggaran Dasar (Maks: 5MB): <input type="file" name="AnggaranDasar" onChange={handleFileChange} className="file-input" disabled={hasSubmitted} /></label>
-                        <label className="form-group file-group">Anggaran Rumah Tangga (Maks: 5MB): <input type="file" name="AnggaranRumahTangga" onChange={handleFileChange} className="file-input" disabled={hasSubmitted} /></label>
-                        <label className="form-group file-group">Program Kerja (Maks: 5MB): <input type="file" name="ProgramKerja" onChange={handleFileChange} className="file-input" disabled={hasSubmitted} /></label>
-                        <label className="form-group file-group">SK BUM Desa (Maks: 5MB): <input type="file" name="SK_BUM_Desa" onChange={handleFileChange} className="file-input" disabled={hasSubmitted} /></label>
+                        <label className="form-group file-group">Berita Acara (Maks: 5MB): <input type="file" name="BeritaAcara" onChange={handleFileChange} className="form-input" disabled={hasSubmitted} /></label>
+                        <label className="form-group file-group">Anggaran Dasar (Maks: 5MB): <input type="file" name="AnggaranDasar" onChange={handleFileChange} className="form-input" disabled={hasSubmitted} /></label>
+                        <label className="form-group file-group">Anggaran Rumah Tangga (Maks: 5MB): <input type="file" name="AnggaranRumahTangga" onChange={handleFileChange} className="form-input" disabled={hasSubmitted} /></label>
+                        <label className="form-group file-group">Program Kerja (Maks: 5MB): <input type="file" name="ProgramKerja" onChange={handleFileChange} className="form-input" disabled={hasSubmitted} /></label>
+                        <label className="form-group file-group">SK BUM Desa (Maks: 5MB): <input type="file" name="SK_BUM_Desa" onChange={handleFileChange} className="form-input" disabled={hasSubmitted} /></label>
                     </div>
                 );
             default:

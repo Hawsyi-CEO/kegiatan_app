@@ -63,9 +63,12 @@ function BumdesDashboard() {
         const fetchData = async () => {
             try {
                 const response = await axios.get('/api/bumdes');
-                setData(response.data);
-                setFilteredData(response.data);
-                const uniqueKecamatan = [...new Set(response.data.map(item => item.kecamatan).filter(Boolean))];
+                // Perbaikan utama: Periksa apakah response.data dan response.data.data ada sebelum memprosesnya
+                const apiData = response.data && Array.isArray(response.data.data) ? response.data.data : [];
+
+                setData(apiData);
+                setFilteredData(apiData);
+                const uniqueKecamatan = [...new Set(apiData.map(item => item.kecamatan).filter(Boolean))];
                 setKecamatanList(uniqueKecamatan.sort());
             } catch (error) {
                 console.error('Error fetching data:', error);
@@ -78,21 +81,27 @@ function BumdesDashboard() {
     }, []);
 
     useEffect(() => {
-        let temp = data.filter(item => {
-            const matchesSearch = (item.namabumdesa?.toLowerCase().includes(filter.search.toLowerCase()) || item.desa?.toLowerCase().includes(filter.search.toLowerCase()));
-            const matchesKecamatan = !filter.kecamatan || item.kecamatan === filter.kecamatan;
-            return matchesSearch && matchesKecamatan;
-        });
-        setFilteredData(temp);
+        // Perbaikan: Pastikan `data` adalah array sebelum memanggil `.filter()`
+        if (Array.isArray(data)) {
+            let temp = data.filter(item => {
+                const matchesSearch = (item.namabumdesa?.toLowerCase().includes(filter.search.toLowerCase()) || item.desa?.toLowerCase().includes(filter.search.toLowerCase()));
+                const matchesKecamatan = !filter.kecamatan || item.kecamatan === filter.kecamatan;
+                return matchesSearch && matchesKecamatan;
+            });
+            setFilteredData(temp);
+        } else {
+            setFilteredData([]); // Atur ulang ke array kosong jika data tidak valid
+        }
         setCurrentPage(1);
     }, [filter, data]);
 
     const getChartData = (key) => {
-        const counts = filteredData.reduce((acc, item) => {
+        // Perbaikan: Pastikan `filteredData` adalah array
+        const counts = Array.isArray(filteredData) ? filteredData.reduce((acc, item) => {
             const value = item[key] || 'Tidak Diketahui';
             acc[value] = (acc[value] || 0) + 1;
             return acc;
-        }, {});
+        }, {}) : {};
         
         const generateColors = (count) => {
             const colors = [];
@@ -122,11 +131,12 @@ function BumdesDashboard() {
     };
 
     const getSummaryData = (key) => {
-        const counts = filteredData.reduce((acc, item) => {
+        // Perbaikan: Pastikan `filteredData` adalah array
+        const counts = Array.isArray(filteredData) ? filteredData.reduce((acc, item) => {
             const value = item[key] || 'Tidak Diketahui';
             acc[value] = (acc[value] || 0) + 1;
             return acc;
-        }, {});
+        }, {}) : {};
         return counts;
     };
 
@@ -140,8 +150,9 @@ function BumdesDashboard() {
 
     const dataTableLastItem = currentPage * itemsPerPage;
     const dataTableFirstItem = dataTableLastItem - itemsPerPage;
-    const currentItems = filteredData.slice(dataTableFirstItem, dataTableLastItem);
-    const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+    // Perbaikan: Gunakan `Array.isArray` sebelum memanggil `.slice()`
+    const currentItems = Array.isArray(filteredData) ? filteredData.slice(dataTableFirstItem, dataTableLastItem) : [];
+    const totalPages = Array.isArray(filteredData) ? Math.ceil(filteredData.length / itemsPerPage) : 0;
 
     const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
@@ -193,15 +204,15 @@ function BumdesDashboard() {
             <div className="chart-grid">
                 <div className="chart-card-item">
                     <h3 className="chart-title-item">Status BUMDes</h3>
-                    <Bar data={getChartData('status')} />
+                    {Array.isArray(filteredData) && <Bar data={getChartData('status')} />}
                 </div>
                 <div className="chart-card-item">
                     <h3 className="chart-title-item">Jenis Usaha</h3>
-                    <Doughnut data={getChartData('JenisUsaha')} />
+                    {Array.isArray(filteredData) && <Doughnut data={getChartData('JenisUsaha')} />}
                 </div>
                 <div className="chart-card-item">
                     <h3 className="chart-title-item">Status Badan Hukum</h3>
-                    <Pie data={getChartData('badanhukum')} />
+                    {Array.isArray(filteredData) && <Pie data={getChartData('badanhukum')} />}
                 </div>
             </div>
 

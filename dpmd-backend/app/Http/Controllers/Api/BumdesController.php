@@ -35,11 +35,13 @@ class BumdesController extends Controller
     }
 
     /**
-     * Mengambil semua data BUMDes.
+     * Mengambil semua data BUMDes dan mengemasnya dalam format yang benar untuk frontend.
      */
     public function index()
     {
-        return response()->json(Bumdes::all());
+        $bumdes = Bumdes::all();
+        // PERBAIKAN: Mengemas data dalam kunci 'data'
+        return response()->json(['data' => $bumdes]); 
     }
 
     /**
@@ -298,7 +300,8 @@ class BumdesController extends Controller
         $bumdes = Bumdes::where('namabumdesa', 'like', "%{$query}%")
                             ->orWhere('desa', 'like', "%{$query}%")
                             ->get();
-        return response()->json($bumdes);
+        // PERBAIKAN: Menambahkan format 'data' agar konsisten
+        return response()->json(['data' => $bumdes]); 
     }
     
     /**
