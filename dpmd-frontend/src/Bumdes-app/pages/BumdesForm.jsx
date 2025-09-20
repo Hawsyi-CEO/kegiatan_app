@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../../services/api'; 
 import { FaPaperPlane, FaSpinner } from 'react-icons/fa';
 import './bumdes.css';
 
@@ -94,13 +94,18 @@ function BumdesForm() {
     useEffect(() => {
         const fetchIdentitasData = async () => {
             try {
-                const response = await axios.get('/api/identitas-bumdes');
-                // Perbaikan: Akses properti `data` dari respons jika ada, jika tidak, gunakan array kosong
-                const apiData = response.data.data || [];
+                const response = await api.get('/identitas-bumdes');
+                const apiData = response.data || [];
                 
-                setAllIdentitasData(apiData);
-                const uniqueKec = [...new Set(apiData.map(item => item.kecamatan))].sort();
-                setUniqueKecamatan(uniqueKec);
+                if (Array.isArray(apiData) && apiData.length > 0) {
+                    setAllIdentitasData(apiData);
+                    const uniqueKec = [...new Set(apiData.map(item => item?.kecamatan))].filter(Boolean).sort();
+                    setUniqueKecamatan(uniqueKec);
+                } else {
+                    console.warn("API returned no data or an invalid format.");
+                    setAllIdentitasData([]);
+                    setUniqueKecamatan([]);
+                }
             } catch (error) {
                 console.error('Gagal mengambil data identitas:', error);
                 setMessage({ text: 'Gagal memuat data kecamatan dan desa. Coba refresh halaman.', type: 'error' });
@@ -246,7 +251,7 @@ function BumdesForm() {
         }
 
         try {
-            const response = await axios.post('/api/bumdes', dataToSend, {
+            const response = await api.post('/bumdes', dataToSend, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
 
@@ -333,7 +338,7 @@ function BumdesForm() {
                         <h2 className="form-section-title">Legalitas</h2>
                         <label className="form-group">NIB: <input type="text" name="NIB" value={formData.NIB} onChange={handleChange} placeholder="masukan nomor NIB.." className="form-input" disabled={hasSubmitted} /></label>
                         <label className="form-group">LKPP: <input type="text" name="LKPP" value={formData.LKPP} onChange={handleChange} placeholder="masukan nomor LKPP.." className="form-input" disabled={hasSubmitted} /></label>
-                        <label className="form-group">NPWP: <input type="text" name="NPWP" value={formData.NPWP} onChange={handleChange} placeholder="masukan nomor NPWP.." className="form-input" disabled={hasSubmitted} /></label>
+                        <label className="form-group">NPWP: <input type="text" name="NPWP" value={formData.NPWP} onChange={handleChange} className="form-input" disabled={hasSubmitted} /></label>
                         <label className="form-group">Status Badan Hukum:
                             <select name="badanhukum" value={formData.badanhukum} onChange={handleChange} className="form-select" disabled={hasSubmitted}>
                                 <option value="">-</option>
@@ -505,7 +510,7 @@ function BumdesForm() {
                         <label className="form-group file-group">Berita Acara (Maks: 5MB): <input type="file" name="BeritaAcara" onChange={handleFileChange} className="form-input" disabled={hasSubmitted} /></label>
                         <label className="form-group file-group">Anggaran Dasar (Maks: 5MB): <input type="file" name="AnggaranDasar" onChange={handleFileChange} className="form-input" disabled={hasSubmitted} /></label>
                         <label className="form-group file-group">Anggaran Rumah Tangga (Maks: 5MB): <input type="file" name="AnggaranRumahTangga" onChange={handleFileChange} className="form-input" disabled={hasSubmitted} /></label>
-                        <label className="form-group file-group">Program Kerja (Maks: 5MB): <input type="file" name="ProgramKerja" onChange={handleFileChange} className="form-input" disabled={hasSubmitted} /></label>
+                        <label className="form-group file-group">Program Kerja (Maks: 5MB): <input type="file" name="ProgramKerja" onChange={handleFileChange} className="file-input" disabled={hasSubmitted} /></label>
                         <label className="form-group file-group">SK BUM Desa (Maks: 5MB): <input type="file" name="SK_BUM_Desa" onChange={handleFileChange} className="form-input" disabled={hasSubmitted} /></label>
                     </div>
                 );
@@ -513,7 +518,6 @@ function BumdesForm() {
                 return null;
         }
     };
-
 
     return (
         <div className="form-page-container">

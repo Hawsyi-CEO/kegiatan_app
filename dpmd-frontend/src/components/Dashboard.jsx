@@ -2,50 +2,61 @@ import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 
-const API_URL = 'http://localhost:8000/api';
-
+const API_URL_BASE = 'http://localhost:8000';
 const Dashboard = ({ onFilterClick }) => {
   const [data, setData] = useState({
     mingguan: 0,
     bulanan: 0,
     per_bidang: [],
   });
-  const [weeklySchedule, setWeeklySchedule] = useState([]);
-  const [selectedDayIndex, setSelectedDayIndex] = useState(0); 
+  // Ubah state awal menjadi null untuk menandakan "loading"
+  const [weeklySchedule, setWeeklySchedule] = useState(null);
+  const [selectedDayIndex, setSelectedDayIndex] = useState(0);
   const [activeActivityIndex, setActiveActivityIndex] = useState(0);
   const [isActivityTransitioning, setIsActivityTransitioning] = useState(false);
   const [isDayTransitioning, setIsDayTransitioning] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const activityCarouselIntervalRef = useRef(null);
   const dayTransitionIntervalRef = useRef(null);
 
-  const activityTransitionDuration = 500; // Durasi animasi per kegiatan
-  const dayTransitionDuration = 500; // Durasi animasi per hari
-  const activityDisplayDuration = 5000; // Waktu tampil per kegiatan
-  const extraDelay = 1500; // Jeda tambahan sebelum transisi hari
+  const activityTransitionDuration = 500;
+  const dayTransitionDuration = 500;
+  const activityDisplayDuration = 5000;
+  const extraDelay = 1500;
 
   useEffect(() => {
-    const fetchDashboardData = async () => {
+    const fetchAllData = async () => {
       try {
-        const response = await axios.get(`${API_URL}/dashboard`);
-        setData(response.data);
+        setIsLoading(true);
+        // Menggabungkan dua permintaan API untuk efisiensi
+        const [dashboardResponse, weeklyScheduleResponse] = await Promise.all([
+          axios.get(`${API_URL_BASE}/api/dashboard`),
+          axios.get(`${API_URL_BASE}/api/dashboard/weekly-schedule`),
+        ]);
+
+        // Pastikan respons dashboard adalah objek yang valid
+        setData(dashboardResponse.data || { mingguan: 0, bulanan: 0, per_bidang: [] });
+        
+        // Pastikan respons jadwal adalah array
+        const fetchedSchedule = weeklyScheduleResponse.data || [];
+        setWeeklySchedule(fetchedSchedule);
+        
+        // Atur hari terpilih ke 0 jika ada data
+        if (fetchedSchedule.length > 0) {
+          setSelectedDayIndex(0);
+        }
+
       } catch (error) {
-        Swal.fire('Error', 'Gagal memuat data dashboard.', 'error');
+        Swal.fire('Error', 'Gagal memuat data dashboard atau jadwal.', 'error');
+        console.error('Failed to fetch data', error);
+        setData({ mingguan: 0, bulanan: 0, per_bidang: [] });
+        setWeeklySchedule([]); // Set ke array kosong jika ada error
+      } finally {
+        setIsLoading(false);
       }
     };
-    fetchDashboardData();
-  }, []);
-  
-  useEffect(() => {
-    const fetchWeeklySchedule = async () => {
-      try {
-        const response = await axios.get(`${API_URL}/dashboard/weekly-schedule`);
-        setWeeklySchedule(response.data);
-      } catch (error) {
-        console.error('Failed to fetch weekly schedule', error);
-      }
-    };
-    fetchWeeklySchedule();
+    fetchAllData();
   }, []);
 
   // Logika carousel kegiatan
@@ -53,15 +64,17 @@ const Dashboard = ({ onFilterClick }) => {
     if (activityCarouselIntervalRef.current) {
       clearInterval(activityCarouselIntervalRef.current);
     }
-    const selectedDay = weeklySchedule[selectedDayIndex];
-    if (selectedDay && selectedDay.kegiatan && selectedDay.kegiatan.length > 1) {
+    
+    // Pastikan weeklySchedule dan selectedDay ada
+    const selectedDay = weeklySchedule?.[selectedDayIndex];
+    if (selectedDay && selectedDay.kegiatan?.length > 1) {
       activityCarouselIntervalRef.current = setInterval(() => {
         setIsActivityTransitioning(true);
         setTimeout(() => {
           setActiveActivityIndex(prevIndex => (prevIndex + 1) % selectedDay.kegiatan.length);
           setIsActivityTransitioning(false);
         }, activityTransitionDuration);
-      }, activityDisplayDuration); 
+      }, activityDisplayDuration);
     } else {
       setActiveActivityIndex(0);
       setIsActivityTransitioning(false);
@@ -79,11 +92,12 @@ const Dashboard = ({ onFilterClick }) => {
     if (dayTransitionIntervalRef.current) {
       clearInterval(dayTransitionIntervalRef.current);
     }
-
-    const selectedDay = weeklySchedule[selectedDayIndex];
+    
+    // Pastikan weeklySchedule dan selectedDay ada
+    const selectedDay = weeklySchedule?.[selectedDayIndex];
     if (selectedDay && weeklySchedule.length > 1) {
-      const totalActivities = selectedDay.kegiatan.length;
-      const totalTimeForDay = (totalActivities > 0 ? totalActivities : 1) * activityDisplayDuration;
+      const totalActivities = selectedDay.kegiatan?.length || 1;
+      const totalTimeForDay = totalActivities * activityDisplayDuration;
 
       dayTransitionIntervalRef.current = setInterval(() => {
         setIsDayTransitioning(true);
@@ -102,7 +116,6 @@ const Dashboard = ({ onFilterClick }) => {
     };
   }, [weeklySchedule, selectedDayIndex]);
 
-  // FUNGSI INI YANG DIUBAH
   const renderPersonilList = (personilString) => {
     if (!personilString) return <p className="text-gray-600 text-sm">Tidak ada personel.</p>;
     
@@ -116,8 +129,16 @@ const Dashboard = ({ onFilterClick }) => {
       </ol>
     );
   };
+  
+  const selectedDay = weeklySchedule?.[selectedDayIndex];
 
-  const selectedDay = weeklySchedule[selectedDayIndex];
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-screen fade-in">
+        <p className="text-lg text-gray-500">Memuat data...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="fade-in custom-container">
@@ -142,12 +163,16 @@ const Dashboard = ({ onFilterClick }) => {
         <div className="dashboard-bidang-card">
           <h4 className="dashboard-bidang-header"><i className="fas fa-project-diagram"></i> Per Bidang</h4>
           <ul className="dashboard-bidang-list">
-            {data.per_bidang.map(b => (
-              <li key={b.id_bidang} className="dashboard-bidang-item" onClick={() => onFilterClick('', b.id_bidang)}>
-                {b.nama_bidang}
-                <span>{b.total}</span>
-              </li>
-            ))}
+            {data.per_bidang?.length > 0 ? (
+              data.per_bidang.map(b => (
+                <li key={b.id_bidang} className="dashboard-bidang-item" onClick={() => onFilterClick('', b.id_bidang)}>
+                  {b.nama_bidang}
+                  <span>{b.total}</span>
+                </li>
+              ))
+            ) : (
+              <li className="text-sm text-gray-400">Tidak ada data bidang.</li>
+            )}
           </ul>
         </div>
       </div>
@@ -157,26 +182,28 @@ const Dashboard = ({ onFilterClick }) => {
         <div className="calendar-card">
           <h4 className="calendar-header"><i className="fas fa-calendar-alt"></i> Kalender Mingguan</h4>
           <div className="calendar-list">
-            {weeklySchedule.length > 0 ? weeklySchedule.map((day, index) => (
-              <div 
-                key={day.tanggal} 
-                className={`calendar-day-item ${selectedDayIndex === index ? 'active' : ''}`}
-                onClick={() => {
-                  setSelectedDayIndex(index);
-                  setActiveActivityIndex(0); 
-                  clearInterval(activityCarouselIntervalRef.current);
-                  clearInterval(dayTransitionIntervalRef.current);
-                  setIsActivityTransitioning(false);
-                  setIsDayTransitioning(false);
-                }}
-              >
-                <div className="calendar-day-info">
-                  <div className="day-name">{day.hari}</div>
-                  <div className="day-date-text">{new Date(day.tanggal).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })}</div>
+            {weeklySchedule?.length > 0 ? (
+              weeklySchedule.map((day, index) => (
+                <div 
+                  key={day.tanggal} 
+                  className={`calendar-day-item ${selectedDayIndex === index ? 'active' : ''}`}
+                  onClick={() => {
+                    setSelectedDayIndex(index);
+                    setActiveActivityIndex(0); 
+                    clearInterval(activityCarouselIntervalRef.current);
+                    clearInterval(dayTransitionIntervalRef.current);
+                    setIsActivityTransitioning(false);
+                    setIsDayTransitioning(false);
+                  }}
+                >
+                  <div className="calendar-day-info">
+                    <div className="day-name">{day.hari}</div>
+                    <div className="day-date-text">{new Date(day.tanggal).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })}</div>
+                  </div>
+                  <div className="calendar-day-count">{day.kegiatan?.length || 0} kegiatan</div>
                 </div>
-                <div className="calendar-day-count">{day.kegiatan?.length || 0} kegiatan</div>
-              </div>
-            )) : (
+              ))
+            ) : (
               <p className="no-activity-message">Tidak ada jadwal.</p>
             )}
           </div>
@@ -190,7 +217,7 @@ const Dashboard = ({ onFilterClick }) => {
                 Kegiatan pada {selectedDay.hari}, {new Date(selectedDay.tanggal).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })}
               </h4>
               <div className="activity-carousel-wrapper">
-                {selectedDay.kegiatan && selectedDay.kegiatan.length > 0 ? (
+                {selectedDay.kegiatan?.length > 0 ? (
                   selectedDay.kegiatan.map((keg, index) => (
                     <div 
                       key={index} 
@@ -203,7 +230,7 @@ const Dashboard = ({ onFilterClick }) => {
                         <i className="fas fa-map-marker-alt"></i> {keg.lokasi}
                       </p>
                       <div className="activity-card-details">
-                        {keg.details && keg.details.length > 0 ? (
+                        {keg.details?.length > 0 ? (
                           keg.details.map((detail, detailIndex) => (
                             <div key={detailIndex} className="activity-card-detail-item">
                               <span>{detail.nama_bidang}:</span>
@@ -230,6 +257,8 @@ const Dashboard = ({ onFilterClick }) => {
                         setActiveActivityIndex(dotIndex);
                         clearInterval(activityCarouselIntervalRef.current);
                         clearInterval(dayTransitionIntervalRef.current);
+                        setIsActivityTransitioning(false);
+                        setIsDayTransitioning(false);
                       }}
                     ></span>
                   ))}
